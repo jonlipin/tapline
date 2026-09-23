@@ -192,7 +192,9 @@ function ns.Usage()
 	Print("  /tapline - open the options page, in the game's own options window where it will")
 	Print("  /tapline show - show or hide the Life Tap cost readout (it has a close button too)")
 	Print("  /tapline only - show only the heals that are actually on you")
-	Print("  /tapline gap <0-40> | rowgap <0-30> - room beside the icon, and between rows")
+	Print("  /tapline gap <0-40> | rowgap <-20-30> - room beside the icon, and between rows")
+	Print("  /tapline collapse - let what is on you pack to the front, with no gaps")
+	Print("  /tapline grow up | down - which way the rows run")
 	Print("  /tapline minimap - show or hide the button on the minimap")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
@@ -238,6 +240,17 @@ local function Command(msg)
 		ns.Panel:Rebuild()
 		local m = ns.Panel:RowMetrics()
 		Print(("Icon to bar %d, row to row %d."):format(m.gap, m.pitch - m.rowH))
+	elseif sub == "collapse" then
+		p.collapse = not p.collapse
+		ns.Panel:Rebuild()
+		if ns.Options then ns.Options:Refresh() end
+		Print(p.collapse and "Packed: every row takes any heal, so what is on you sits at the front. Pair it with /tapline only."
+			or "One row per heal, each in its own place.")
+	elseif sub == "grow" then
+		p.growth = (tail == "up") and "up" or "down"
+		ns.Panel:Rebuild()
+		if ns.Options then ns.Options:Refresh() end
+		Print("Rows grow " .. p.growth .. ".")
 	elseif sub == "only" then
 		p.onlyActive = not p.onlyActive
 		ns.Panel:Refresh(GetTime())

@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.7.0
+
+- **Fixed: "only heals that are on you" left three empty squares behind.** Four things were being faded out, the icon, the bar and the two labels, but the frame art, the plate and the icon's shadow are put on by the skin and belong to the row rather than to those four, so they stayed. The row itself goes now, which takes everything drawn on it with it. The game's own row is not a child of ours, so it still shows.
+- **A growth direction.** Rows run down from the top of the box by default, or up from the bottom. Tickbox in the options, or `/tapline grow up` and `/tapline grow down`.
+- **The rows can pack together**, with no gap left for a heal you do not have. Tickbox in the options, or `/tapline collapse`. Best paired with "only heals that are actually on you".
+
+### How the packing works, and its one catch
+
+Tapline cannot see which rows are filled. Whether a heal is on you is aura data, and on this client that is secret to addons in combat, which is the whole reason the game draws these rows rather than the addon. So it cannot move the filled ones up.
+
+What it does instead is hand **every** row **every** heal, and let the game fill them from the front. The game decides which row a heal lands in, and it fills the first before the second. That gets what you have sitting together at the front with no holes, without this addon knowing anything.
+
+The catch: a row can no longer say in advance which heal it is waiting for, because any of them could land in it. So while packing is on, an empty row shows no icon and no name. With "only heals that are on you" turned on as well it makes no difference, since an empty row shows nothing at all.
+
+This arrangement is **not yet confirmed in game**. If the game turns out to put the same heal in every row, or to leave the first empty, say so and it goes back in a minute: the one row per heal arrangement is still the default and is untouched.
+
 ## 1.6.1
 
 - **Fixed: winding the row gap down to nothing still left the rows far apart.** The gap slider was working; the row height underneath it was not. Every row was being padded by the reach of the icon's frame art, about a tenth of the icon on each side, whether anything needed the room or not. That padding sat behind the setting and could not be wound out. A row is now as tall as the taller of the bar and the icon and no taller, so at a gap of nothing the rows sit exactly one row apart.

@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.6.1"
+ns.VERSION = "1.7.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -207,6 +207,8 @@ local DEFAULTS = {
 	onlyActive = false, -- draw nothing for a heal that is not on you, rather than an empty row
 	gapExtra = 0,    -- room between icon and bar, ON TOP of the least that avoids an overlap
 	rowGap = 4,      -- room between one row and the next
+	growth = "down", -- which way the rows are laid out from the box's anchor
+	collapse = false, -- every row takes any heal, so what is on you packs to the front
 	minimap = true,
 	minimapAngle = 200,
 	barX = nil, barY = nil,

@@ -448,7 +448,11 @@ local function Cell(parent, row, index)
 	local m = Panel:RowMetrics()
 	local cell = CreateFrame("Frame", nil, parent)
 	cell:SetSize(m.w, m.rowH)
-	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * m.pitch)
+	if (ns.Profile() or {}).growth == "up" then
+		cell:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 6, 4 + (index - 1) * m.pitch)
+	else
+		cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * m.pitch)
+	end
 	local parts = Adorn(cell, m)
 	cell.icon, cell.bar, cell.name, cell.time, cell.count = parts.icon, parts.bar, parts.name, parts.time, parts.count
 
@@ -463,8 +467,14 @@ local function Cell(parent, row, index)
 		end
 	end
 	if not tex then local _, t = ns.SpellInfo(row.name) tex = t end
-	cell.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
-	cell.name:SetText(row.name)
+	if (ns.Profile() or {}).collapse then
+		-- Any heal can land in any row now, so the row underneath cannot honestly name one.
+		cell.icon:SetTexture(nil)
+		cell.name:SetText("")
+	else
+		cell.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
+		cell.name:SetText(row.name)
+	end
 	cell.row = row
 	return cell
 end
@@ -472,6 +482,7 @@ end
 function Panel:DressCell(cell, testing, now)
 	local w, h = self:BarSize()
 	if testing then
+		cell:SetAlpha(1)
 		cell.name:SetAlpha(1)
 		cell.time:SetAlpha(1)
 		-- A preview that moves, so the layout can be judged without waiting on a healer. The clock
@@ -493,12 +504,17 @@ function Panel:DressCell(cell, testing, now)
 		-- and the game's own row, which is the only thing that knows whether a heal is there,
 		-- is left to show itself. The row keeps its place so the slot above it keeps its place.
 		local p = ns.Profile() or {}
-		local ghost = p.onlyActive and 0 or 1
-		cell.icon:SetAlpha(0.35 * ghost)
-		cell.bar:SetAlpha(0.45 * ghost)
-		cell.name:SetAlpha(ghost)
-		cell.time:SetAlpha(ghost)
+		cell.icon:SetAlpha(0.35)
+		cell.bar:SetAlpha(0.45)
+		cell.name:SetAlpha(1)
+		cell.time:SetAlpha(1)
 		cell.name:SetTextColor(0.55, 0.53, 0.47)
+		-- Fading the icon, the bar and the two labels was not enough: the frame art, the plate
+		-- and the icon's shadow are put on by the skin and belong to the row, not to those four,
+		-- so they stayed behind as empty squares. The row itself is what goes, which takes
+		-- everything on it with it and still leaves the game's own row, which is not a child of
+		-- it, free to show.
+		cell:SetAlpha(p.onlyActive and 0 or 1)
 	end
 end
 
@@ -512,7 +528,8 @@ function Panel:BuildBars()
 
 	local m = self:RowMetrics()
 	local w, h = m.w, m.h
-	local key = ("%dx%dx%d|"):format(w, h, m.iconSize)
+	local key = ("%dx%dx%d|%s|%s|%d|"):format(w, h, m.iconSize,
+		tostring((ns.Profile() or {}).growth), tostring((ns.Profile() or {}).collapse), m.pitch)
 	local any = false
 	for _, row in ipairs(ns.HOTS or {}) do
 		local ids = ns.Ranks(row.name)
@@ -584,11 +601,25 @@ function Panel:BuildBars()
 	c:Show()
 	self.container = c
 
+	-- Packed together, every slot is offered every heal, so the game fills them from the front
+	-- and what is on you sits at the top with no holes. Which slot a heal lands in is the
+	-- game's to decide: this addon cannot see which of them are filled, so it cannot pack them
+	-- itself. That is the whole reason this is done by handing the game a wider list rather
+	-- than by moving anything.
+	local everything
+	if p.collapse then
+		everything = {}
+		for _, row in ipairs(ns.HOTS or {}) do
+			local ids = ns.Ranks(row.name)
+			if ids then for id in pairs(ids) do everything[id] = true end end
+		end
+		if not next(everything) then everything = nil end
+	end
 	local made = 0
 	for i, row in ipairs(ns.HOTS or {}) do
-		local ids = ns.Ranks(row.name)
+		local ids = everything or ns.Ranks(row.name)
 		if ids then
-			local okSlot, frame = pcall(c.AddAuraSlot, c, row.name, "HELPFUL", {
+			local okSlot, frame = pcall(c.AddAuraSlot, c, everything and ("row" .. i) or row.name, "HELPFUL", {
 				initializeFrame = InitSlot(row),
 				-- No isFromPlayerOrPlayerPet: the whole point is a heal somebody else cast on you.
 				candidateFilters = { includeSpellIDs = ids },
