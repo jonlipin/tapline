@@ -228,6 +228,12 @@ local function Command(msg)
 		Print("Both displays put back in the middle.")
 	elseif sub == "debug" then
 		ns.Debug()
+	elseif sub == "log" then
+		-- The report is long and a photograph of the screen only ever catches part of it. Saved, it
+		-- can be read off disk once the client has written the saved variables out.
+		ns.Debug()
+		local n = (ns.db and type(ns.db.log) == "table") and #ns.db.log or 0
+		Print(("%d lines kept. Type /reload, then the report is in TaplineDB.log in this character's SavedVariables."):format(n))
 	elseif sub == "probe" then
 		ns.Probe()
 	else

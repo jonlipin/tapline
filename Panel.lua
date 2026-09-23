@@ -1,7 +1,8 @@
 -- Tapline's two displays.
 --
--- The readout is an ordinary frame this addon draws from health and mana, which it can read, so it
--- keeps working in a fight.
+-- The readout is an ordinary frame this addon draws. On this client it is usually the smaller half
+-- of the display, because health and mana come back secret here and there is nothing to compute:
+-- it then shows what a tap costs, what is heading your way, and gets out of the way.
 --
 -- The bars underneath are not ours. Each one is a slot the GAME fills: it is handed the spell ids
 -- of every rank of one heal, and it draws that aura into regions we give it, staying right in
@@ -175,29 +176,50 @@ function Panel:Refresh(now)
 	if self.bars then self.bars:SetShown(p.bars ~= false) end
 
 	local S = ns.state
-	if S.hp and S.hpMax and S.hpMax > 0 then
-		f.health:SetValue(S.hp / S.hpMax)
-		f.health.text:SetText(("%d / %d   %d%%"):format(S.hp, S.hpMax, floor(S.hp / S.hpMax * 100 + 0.5)))
-	else
-		f.health:SetValue(0)
-		-- The reason, not just the fact: which wall was hit is the whole of the useful answer here.
-		f.health.text:SetText(S.hpWhy and ("health: " .. S.hpWhy) or "health unreadable")
+	-- When this client will not say what your health is, the readout says so once, quietly, and
+	-- gets out of the way. A panel of error text sitting over the game is worse than no panel: the
+	-- detail belongs in /tapline debug, and what is left here is what can still be shown.
+	local blindVitals = not (S.hp and S.hpMax and S.hpMax > 0)
+	if blindVitals ~= self.compact then
+		self.compact = blindVitals
+		f:SetHeight(blindVitals and 76 or 118)
+		f.verdict:SetFont(FONT, blindVitals and 13 or 18, 'OUTLINE')
+		f.health:SetShown(not blindVitals)
+		f.mana:SetShown(not blindVitals)
+		f.verdict:ClearAllPoints()
+		f.verdict:SetPoint("TOPLEFT", blindVitals and f or f.mana, blindVitals and "TOPLEFT" or "BOTTOMLEFT",
+			blindVitals and 8 or 0, blindVitals and -22 or -5)
 	end
-	if S.mp and S.mpMax and S.mpMax > 0 then
-		f.mana:SetValue(S.mp / S.mpMax)
-		f.mana.text:SetText(("%d / %d   %d%%"):format(S.mp, S.mpMax, floor(S.mp / S.mpMax * 100 + 0.5)))
-	else
-		f.mana:SetValue(0)
-		f.mana.text:SetText(S.mpWhy and ("mana: " .. S.mpWhy) or "mana unreadable")
+
+	if not blindVitals then
+		f.health:SetValue(S.hp / S.hpMax)
+		f.health.text:SetText(S.percentOnly and ("%d%%   (a percentage is all this client will give)"):format(S.hp)
+			or ("%d / %d   %d%%"):format(S.hp, S.hpMax, floor(S.hp / S.hpMax * 100 + 0.5)))
+		if S.mp and S.mpMax and S.mpMax > 0 then
+			f.mana:SetValue(S.mp / S.mpMax)
+			f.mana.text:SetText(("%d / %d   %d%%"):format(S.mp, S.mpMax, floor(S.mp / S.mpMax * 100 + 0.5)))
+		else
+			f.mana:SetValue(0)
+			f.mana.text:SetText("mana is secret on this client")
+		end
 	end
 
 	local key, reason, room = ns.Verdict()
-	local v = VERDICTS[key] or VERDICTS.unknown
-	f.verdict:SetText(v[1])
-	f.verdict:SetTextColor(v[2], v[3], v[4])
 	local cost = ns.Cost()
-	f.room:SetText((room and room > 0 and cost) and ("%d x %d"):format(room, cost) or "")
-	f.reason:SetText(reason or "")
+	if blindVitals then
+		-- Nothing to decide with, so the panel stops pretending to decide and shows the two things
+		-- it does know: what a tap costs, and what is heading your way.
+		f.verdict:SetText(cost and ("a tap costs %d"):format(cost) or "Life Tap")
+		f.verdict:SetTextColor(0.85, 0.8, 0.6)
+		f.room:SetText("")
+		f.reason:SetText("your health is secret to addons here, so the bars below are the answer")
+	else
+		local v = VERDICTS[key] or VERDICTS.unknown
+		f.verdict:SetText(v[1])
+		f.verdict:SetTextColor(v[2], v[3], v[4])
+		f.room:SetText((room and room > 0 and cost) and ("%d x %d"):format(room, cost) or "")
+		f.reason:SetText(reason or "")
+	end
 	local kind, line = ns.Incoming()
 	local c = INCOMING_COLORS[kind] or INCOMING_COLORS.none
 	f.incoming:SetText(line or "")

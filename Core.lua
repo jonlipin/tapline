@@ -1,12 +1,19 @@
 -- Tapline: should this health become mana?
 --
 -- A warlock asks that question every fight, and answering it wants two things: how much health
--- there is, and whether more is on the way.
+-- there is, and whether more is on the way. This client is unhelpful about both.
 --
--- The second one is hard on this client. While addon restrictions are up, every read of an aura on
--- you errors or comes back as a secret value, the UNIT_AURA payload lists are secret, and the
--- combat log is closed to addons, so nothing here can ask whether a heal over time is running.
--- The game will play a sound for us and draw a slot for us, but neither tells the addon anything.
+-- Health and mana were meant to be the easy half. They are not aura data, so the expectation was
+-- that they could be read in a fight like any other number. They cannot: verified in game on
+-- 2026-09-23, out of combat and with auras perfectly readable, UnitHealth and UnitPower hand back
+-- SECRET VALUES, and so does every player frame bar that exists here. An addon may hold such a
+-- value but not look inside it, so there is no arithmetic to be done on your own health at all.
+-- What is left is a percentage, if this client will give one, and that is tried last.
+--
+-- Whether anything is healing you is harder still. While addon restrictions are up, every read of
+-- an aura errors or comes back secret, the UNIT_AURA payload lists are secret, and the combat log
+-- is closed to addons. The game will play a sound for us and draw a slot for us, but neither tells
+-- the addon anything: there is no callback behind either.
 --
 -- So the question is answered three ways, and the panel always says which answer it is giving:
 --
@@ -26,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.0.1"
+ns.VERSION = "1.1.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -35,9 +42,33 @@ local strlower = string.lower
 -- ------------------------------------------------------------------
 -- Talking
 -- ------------------------------------------------------------------
+-- Everything printed is also kept in the saved variables, because the useful output here is a long
+-- report and the only way it has reached me so far is a photograph of the screen. Saved, it can be
+-- read off disk after a /reload instead.
+local LOG_CAP = 800
+local pending = {}
+function ns.LogLine(text)
+	local line = tostring(text):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+	local db = ns.db
+	if not db then
+		pending[#pending + 1] = line
+		if #pending > LOG_CAP then table.remove(pending, 1) end
+		return
+	end
+	if type(db.log) ~= "table" then db.log = {} end
+	if #pending > 0 then
+		for _, held in ipairs(pending) do db.log[#db.log + 1] = held end
+		pending = {}
+	end
+	db.log[#db.log + 1] = line
+	while #db.log > LOG_CAP do table.remove(db.log, 1) end
+end
+
 function ns.Print(msg)
 	if issecretvalue and issecretvalue(msg) then msg = "(secret value)" end
-	DEFAULT_CHAT_FRAME:AddMessage("|cffcc66ffTapline:|r " .. tostring(msg))
+	msg = tostring(msg)
+	DEFAULT_CHAT_FRAME:AddMessage("|cffcc66ffTapline:|r " .. msg)
+	ns.LogLine(msg)
 end
 local Print = ns.Print
 
@@ -285,6 +316,22 @@ function ns.ReadVitals()
 		end
 	else
 		S.hpWhy = nil
+	end
+	-- Last resort: a percentage. Nameplates need one, so it may be open where the number is not,
+	-- and it is enough for both things that matter. A floor reads as well in per cent ("never tap
+	-- under 40") and the tick clock only ever cared how big a jump was against your maximum.
+	S.percentOnly = false
+	if not hp and UnitPercentHealthFromGUID and UnitGUID then
+		local okG, guid = pcall(UnitGUID, "player")
+		guid = okG and Clean(guid) or nil
+		if guid then
+			local pct = Read(UnitPercentHealthFromGUID, guid)
+			if pct and pct > 0 then
+				hp, hpMax, source = pct, 100, "a percentage only"
+				S.percentOnly = true
+				S.hpWhy = nil
+			end
+		end
 	end
 	S.hpSource = hp and source or nil
 
@@ -623,16 +670,34 @@ function ns.Verdict()
 		return "unknown", S.hpWhy or "this client will not say what your health is", 0
 	end
 	local cost = ns.Cost()
+	local reserve = hpMax * (p.reserve or 25) / 100
+	-- Mana that cannot be read must not be taken for mana you have. Assuming a full bar would
+	-- mean answering "no need" for the whole of a fight on a client that keeps mana secret, which
+	-- is the one answer that is certainly wrong. Unknown mana simply drops the question.
+	local manaKnown = S.mp and S.mpMax and S.mpMax > 0
+	local manaPct = manaKnown and (S.mp / S.mpMax * 100) or nil
+	-- With only a percentage to go on there is no arithmetic to do on the cost: what a tap takes is
+	-- a number of health and how much health you have is secret. The floor still works, because a
+	-- floor is a percentage already, so the answer becomes "above your floor or not".
+	if S.percentOnly then
+		if hp <= reserve then
+			return "wait", ("below your floor of %d%%"):format(p.reserve or 25), nil
+		end
+		if manaKnown and manaPct > (p.manaAt or 50) then
+			return "spare", ("mana is above %d%%"):format(p.manaAt or 50), nil
+		end
+		local kind, label = ns.Incoming()
+		if kind == "read" or kind == "estimated" or kind == "cast" then return "tap", label, nil end
+		return "ok", "above your floor, nothing healing you", nil
+	end
 	if not cost or cost <= 0 then
 		return "unknown", "no Life Tap rank found: /tapline cost <health>", 0
 	end
-	local reserve = hpMax * (p.reserve or 25) / 100
 	local room = floor((hp - reserve) / cost)
 	if room < 0 then room = 0 end
-	local manaPct = (S.mpMax and S.mpMax > 0) and (S.mp / S.mpMax * 100) or 100
 	-- Mana first, so the red reading means something: there is no decision to make while the mana
 	-- is there, whatever the health is doing.
-	if manaPct > (p.manaAt or 50) then
+	if manaKnown and manaPct > (p.manaAt or 50) then
 		return "spare", ("mana is above %d%%"):format(p.manaAt or 50), room
 	end
 	if room < 1 then

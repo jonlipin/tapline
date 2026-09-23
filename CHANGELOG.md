@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Confirmed in game, and it settles the design: **this client hands your own health and mana back as secret values.** Not refused, not missing. `UnitHealth`, `UnitPower`, `PlayerFrame.healthbar`, the deep `PlayerFrameContent...HealthBarsContainer.HealthBar`, every one of them secret, out of combat, with auras perfectly readable at the same moment. An addon may hold a secret value but never look inside it, so there is no arithmetic to be done on your own health here, by this addon or any other.
+- So the readout stops pretending. When the numbers are secret it shrinks to what it does know, which is what a tap costs and what is heading your way, and says in one line that the bars below are the real answer. A panel of error text sitting over the game was worse than no panel; that detail lives in `/tapline debug` now.
+- Added one last resort before giving up: a percentage. Nameplates need one, so `UnitPercentHealthFromGUID` may be open where the number is not, and a percentage is enough for both things that matter here. A floor reads perfectly well in per cent, and the tick clock only ever cared how big a jump was against your maximum. If that call works, the estimate and the floor come back on their own, with the readout saying a percentage is all it was given.
+- Fixed a real mistake: mana that could not be read was being taken for a full mana bar, so the verdict would answer "no need" for the whole of a fight on a client that keeps mana secret. That is the one answer that is certainly wrong. Unknown mana now drops the question instead of answering it.
+- `/tapline log` writes the whole report into `TaplineDB.log` with the colour codes stripped. A long report has only ever reached me as a photograph of the screen, which catches about a third of it; saved, it can be read off disk after a `/reload`.
+
 ## 1.0.1
 
 - Health and mana come back from this client as **secret values**, not as numbers: the first in-game run said "UnitHealth secret". So the readout now hunts for a bar it can read instead. The player frame has been rebuilt since the old global names were right, and `PlayerFrameHealthBar` does not exist here, so a list of candidate paths is walked and `/tapline debug` reports which of them exist and what each one gave.
