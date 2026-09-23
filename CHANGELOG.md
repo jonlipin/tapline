@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.2
+
+- **The spark is drawn here now, always, even when the client offers one of its own.**
+
+Everything else in the look is copied on the principle that the client knows best. For the spark that principle broke down: a copied texture that does not render looks exactly like no texture at all, and there is no way from inside the addon to tell those two apart. The spark also has to sit precisely where the fill ends, which is the one place a wrongly measured piece shows most. So it is drawn here, where its size, its colour and its position are known, and any copied one is put away rather than left to fight it.
+
+It is wider than a hairline and slightly taller than the bar, so it reads on a bar fifteen or twenty pixels high, which is where these usually end up. A tickbox turns it off, or `/tapline spark`.
+
+- For the record, since it came up: the preview draws through the same bar and the same skin as a real heal, so anything missing there is missing in earnest. A test bar is not a different thing.
+
 ## 1.10.1
 
 - **Removed: "Health to keep back", and the mana percentage that went with it.** Both fed one function, the verdict that decided whether a tap would put you under your floor, and that verdict has been called by nothing at all since the readout which displayed it was taken out. The sliders moved a number that no longer reached anything. The settings, the commands and the verdict itself are gone.

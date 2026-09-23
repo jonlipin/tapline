@@ -301,7 +301,7 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 			t:SetSize(max(2, (d.w or 0.2) * height), max(2, (d.h or 1) * height))
 			t:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
 			t:SetDrawLayer("OVERLAY", 2)
-			bar.tlPip = t
+			bar.tlCopiedPip = t
 		else
 			t:SetPoint("TOPLEFT", bar, "TOPLEFT", -(d.l or 0) * height, (d.t or 0) * height)
 			t:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", (d.rr or 0) * height, -(d.b or 0) * height)
@@ -339,23 +339,34 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		bar.tlEdge:Hide()
 	end
 
-	if not hasPip and not bar.tlPip then
-		-- No spark to copy, so one of our own: a bright sliver riding the end of the fill, which is
-		-- what makes a bar read as moving rather than merely long.
-		local pip = bar:CreateTexture(nil, "OVERLAY", nil, 2)
-		pip:SetColorTexture(1, 0.93, 0.75, 0.85)
-		pcall(pip.SetBlendMode, pip, "ADD")
-		bar.tlPip, bar.tlOwnPip = pip, true
-	end
-	if bar.tlOwnPip and bar.tlPip then
+	-- The spark is ours, always, even when the client offered one.
+	--
+	-- Everything else in this file is copied on the principle that the client knows best, and for
+	-- the spark that principle broke down: a copied texture that does not render looks exactly like
+	-- no texture at all, and there is no way from in here to tell those apart. The spark also has
+	-- to sit precisely where the fill ends, which is the one place a wrongly measured piece is most
+	-- obvious. So it is drawn here, where its size, its colour and its position are known.
+	if bar.tlCopiedPip then bar.tlCopiedPip:Hide() end
+	local wantSpark = (ns.Profile() or {}).spark ~= false
+	if wantSpark then
+		if not bar.tlSpark then
+			local spark = bar:CreateTexture(nil, "OVERLAY", nil, 3)
+			spark:SetColorTexture(1, 0.97, 0.88, 0.9)
+			pcall(spark.SetBlendMode, spark, "ADD")
+			bar.tlSpark = spark
+		end
 		local fill = bar:GetStatusBarTexture()
-		bar.tlPip:SetSize(max(2, height * 0.12), max(4, height))
-		bar.tlPip:ClearAllPoints()
-		bar.tlPip:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
-		bar.tlPip:Show()
+		-- Wider than a hairline and a little taller than the bar, so it reads at a glance on a bar
+		-- only fifteen or twenty pixels high, which is where these usually end up.
+		bar.tlSpark:SetSize(max(3, floor(height * 0.18 + 0.5)), max(6, floor(height * 1.15 + 0.5)))
+		bar.tlSpark:ClearAllPoints()
+		bar.tlSpark:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
+		bar.tlSpark:Show()
+	elseif bar.tlSpark then
+		bar.tlSpark:Hide()
 	end
+	ns.report["bar spark"] = wantSpark and (hasPip and "drawn here, though the client offered one" or "drawn here") or "off"
 	ns.report["bar frame"] = (hasFrame and not forced) and "copied from the client" or "made here"
-	ns.report["bar spark"] = hasPip and "copied from the client" or "made here"
 
 	if icon then
 		if self.iconMask and icon.AddMaskTexture and not icon.tlMask then

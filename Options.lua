@@ -259,6 +259,9 @@ function Options:Content()
 		function(v) P().minimap = v if ns.MinimapButton then ns.MinimapButton:Refresh() end end)
 	ry = self:Check(c, right, ry, "Preview: run the bars on a made-up timer", function() return P().test end,
 		function(v) P().test = v ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "A spark at the end of the fill",
+		function() return P().spark ~= false end,
+		function(v) P().spark = v ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Always draw a frame round the bar",
 		function() return P().edge == "always" end,
 		function(v) P().edge = v and "always" or "auto" ns.Panel:Rebuild() end)
