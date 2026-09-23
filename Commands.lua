@@ -234,7 +234,7 @@ local function Command(msg)
 		if ns.Options then ns.Options:Refresh() end
 		Print("Minimap button " .. (p.minimap and "shown." or "hidden."))
 	elseif (sub == "gap" or sub == "rowgap") and n then
-		if sub == "gap" then p.gapExtra = max(0, min(40, n)) else p.rowGap = max(0, min(30, n)) end
+		if sub == "gap" then p.gapExtra = max(0, min(40, n)) else p.rowGap = max(-20, min(30, n)) end
 		ns.Panel:Rebuild()
 		local m = ns.Panel:RowMetrics()
 		Print(("Icon to bar %d, row to row %d."):format(m.gap, m.pitch - m.rowH))

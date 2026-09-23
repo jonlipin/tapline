@@ -340,10 +340,17 @@ function Panel:RowMetrics()
 	-- What the bar starts at: the icon, plus the frame art on both sides of it, plus the gap.
 	local barLeft = overhang + iconSize + gap
 	local barW = max(8, w - barLeft - overhang)
-	-- A row is as tall as the taller of the bar and the icon with its frame.
-	local rowH = max(h, iconSize + overhangY * 2)
+	-- A row is as tall as the taller of the bar and the icon, and no taller. The frame art round
+	-- an icon was being counted in here too, which quietly padded every row by a tenth of the icon
+	-- whatever the gap slider was set to, so winding the gap to nothing still left rows far apart.
+	-- That art is a soft edge and a little overlap between rows is what the manager itself does, so
+	-- how close rows sit is left entirely to the setting below.
+	local rowH = max(h, iconSize)
+	-- Negative closes rows up further, for a big icon that wants pulling together. Never past the
+	-- point where one row would sit entirely on top of the next.
+	local pitch = max(8, rowH + floor(tonumber(p.rowGap) or 4))
 	return { w = w, h = h, iconSize = iconSize, overhang = overhang, overhangY = overhangY, gap = gap,
-		barLeft = barLeft, barW = barW, rowH = rowH, pitch = rowH + max(0, floor(tonumber(p.rowGap) or 4)) }
+		barLeft = barLeft, barW = barW, rowH = rowH, pitch = pitch }
 end
 
 function Panel:BarSize()

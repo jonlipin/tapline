@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.6.0"
+ns.VERSION = "1.6.1"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min

@@ -226,7 +226,7 @@ function Options:Content()
 	ly = self:Slider(c, left, ly, "Gap between icon and bar", 0, 40, 1,
 		function() return P().gapExtra or 0 end,
 		function(v) P().gapExtra = v ns.Panel:Rebuild() end)
-	ly = self:Slider(c, left, ly, "Gap between rows", 0, 30, 1,
+	ly = self:Slider(c, left, ly, "Gap between rows", -20, 30, 1,
 		function() return P().rowGap or 4 end,
 		function(v) P().rowGap = v ns.Panel:Rebuild() end)
 	ly = self:Slider(c, left, ly, "Bar opacity", 0.1, 1, 0.05,

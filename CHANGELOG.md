@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.1
+
+- **Fixed: winding the row gap down to nothing still left the rows far apart.** The gap slider was working; the row height underneath it was not. Every row was being padded by the reach of the icon's frame art, about a tenth of the icon on each side, whether anything needed the room or not. That padding sat behind the setting and could not be wound out. A row is now as tall as the taller of the bar and the icon and no taller, so at a gap of nothing the rows sit exactly one row apart.
+
+The frame round an icon is a soft edge, and a little overlap between rows is what the Cooldown Manager itself does, so how close rows sit is left entirely to the slider now.
+
+- The row gap goes down to **-20** as well as up to 30, for pulling a big icon's rows together. It stops short of one row sitting entirely on top of the next however far it is wound.
+- The gap beside the icon is untouched: it still cannot be set low enough to put the bar back under the icon's frame, because that one is added to the minimum rather than replacing it.
+
 ## 1.6.0
 
 - **A button on the minimap**, with a tickbox in the options to turn it off and `/tapline minimap` to do the same. Left click opens the options, right click puts the Life Tap readout away or brings it back, and it can be dragged round the edge of the map to wherever suits. Its own button rather than a library: this addon has no libraries and is not growing one for a round button. The ring art is asked for by file id before it is used, because textures that have existed for twenty years are not guaranteed to render on this build, and a plain dark disc stands in if it is not there.
