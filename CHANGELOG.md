@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.9.0
+
+This is the 1.5.0 build put back, with the "only heals that are actually on you" option taken out. Everything released between the two is gone. The history is all still in the repository, so any of it can be brought back on its own.
+
+### Back to how 1.5.0 was
+
+- The bars wear the frame, the fill and the icon art that 1.5.0 drew, which is the look that was right.
+- One row per heal, each in its own place.
+- The gap beside the icon follows the icon's size, so a bigger icon still cannot run into the bar.
+- The preview runs every row on a steady countdown.
+- The Life Tap readout keeps its close button, and closing it still leaves the heal bars alone.
+- Options live in the game's own options window, under AddOns.
+
+### Taken out
+
+- **Only heals that are actually on you.** Gone entirely: the setting, the command and the code.
+
+### Gone with the revert, and easy to put back one at a time
+
+- the minimap button
+- the sliders for the gap beside the icon and the gap between rows, and the row gap reaching zero
+- growing the rows upwards
+- packing the rows together
+- one bar for any heal at all
+- the preview letting heals fall off and come back
+- the skin walking the status bar for its frame and spark
+
+Say which of those you want and it comes back on top of this, one at a time, so nothing has to be taken on trust again.
+
 ## 1.8.2
 
 - **Fixed: the bars lost their frame, and never had a spark.** 1.8.1 taught the skin to find the art the client keeps on the bar, and then the hand-made frame stopped being drawn, because the test for whether to draw it was "did we copy anything at all". One stray texture was enough to switch it off, and if that texture was not a frame the bar simply lost its edge. Each part of the look is asked for separately now:

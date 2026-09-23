@@ -334,52 +334,14 @@ function Panel:RowMetrics()
 	local iconSize = max(8, floor(h * (tonumber(p.iconScale) or 1) + 0.5))
 	local overhang = floor(iconSize * ICON_OVERHANG_X + 0.5)
 	local overhangY = floor(iconSize * ICON_OVERHANG_Y + 0.5)
-	-- Whatever room is asked for is added to the least that avoids an overlap, never instead of
-	-- it, so the slider cannot put the bar back under the icon's frame however it is set.
-	local gap = overhang + 3 + max(0, floor(tonumber(p.gapExtra) or 0))
+	local gap = overhang + 3
 	-- What the bar starts at: the icon, plus the frame art on both sides of it, plus the gap.
 	local barLeft = overhang + iconSize + gap
 	local barW = max(8, w - barLeft - overhang)
-	-- A row is as tall as the taller of the bar and the icon, and no taller. The frame art round
-	-- an icon was being counted in here too, which quietly padded every row by a tenth of the icon
-	-- whatever the gap slider was set to, so winding the gap to nothing still left rows far apart.
-	-- That art is a soft edge and a little overlap between rows is what the manager itself does, so
-	-- how close rows sit is left entirely to the setting below.
-	local rowH = max(h, iconSize)
-	-- Negative closes rows up further, for a big icon that wants pulling together. Never past the
-	-- point where one row would sit entirely on top of the next.
-	local pitch = max(8, rowH + floor(tonumber(p.rowGap) or 4))
+	-- A row is as tall as the taller of the bar and the icon with its frame.
+	local rowH = max(h, iconSize + overhangY * 2)
 	return { w = w, h = h, iconSize = iconSize, overhang = overhang, overhangY = overhangY, gap = gap,
-		barLeft = barLeft, barW = barW, rowH = rowH, pitch = pitch }
-end
-
--- The rows to draw.
---
--- Usually one per heal. But what a warlock actually needs to know is whether anything at all is
--- ticking on them, not which of three spells it is, and for that one row is better than three:
--- one slot given every heal's spell ids shows whichever of them is on you, with its own icon,
--- its own name and its own countdown, and shows nothing when none is. It needs no guess about
--- how the game shares auras between slots, which is the one soft spot in packing rows together.
-function Panel:Rows()
-	local p = ns.Profile() or {}
-	if p.single then
-		local longest = 15
-		for _, row in ipairs(ns.HOTS or {}) do
-			if row.duration > longest then longest = row.duration end
-		end
-		return { { name = "Heal over time", duration = longest, any = true } }
-	end
-	return ns.HOTS or {}
-end
-
--- Every spell id of every heal, for the rows that will take any of them.
-function Panel:AllHealIds()
-	local all = {}
-	for _, row in ipairs(ns.HOTS or {}) do
-		local ids = ns.Ranks(row.name)
-		if ids then for id in pairs(ids) do all[id] = true end end
-	end
-	return next(all) and all or nil
+		barLeft = barLeft, barW = barW, rowH = rowH, pitch = rowH + 4 }
 end
 
 function Panel:BarSize()
@@ -477,11 +439,7 @@ local function Cell(parent, row, index)
 	local m = Panel:RowMetrics()
 	local cell = CreateFrame("Frame", nil, parent)
 	cell:SetSize(m.w, m.rowH)
-	if (ns.Profile() or {}).growth == "up" then
-		cell:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 6, 4 + (index - 1) * m.pitch)
-	else
-		cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * m.pitch)
-	end
+	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * m.pitch)
 	local parts = Adorn(cell, m)
 	cell.icon, cell.bar, cell.name, cell.time, cell.count = parts.icon, parts.bar, parts.name, parts.time, parts.count
 
@@ -496,79 +454,39 @@ local function Cell(parent, row, index)
 		end
 	end
 	if not tex then local _, t = ns.SpellInfo(row.name) tex = t end
-	if row.any then
-		-- It stands for all of them, so it wears the first one this client has art for, and the
-		-- game writes the real name over it the moment a heal actually lands.
-		for _, other in ipairs(ns.HOTS or {}) do
-			local otherIds = ns.Ranks(other.name)
-			if otherIds and not tex then
-				for id in pairs(otherIds) do
-					local _, t = ns.SpellInfo(id)
-					if t then tex = t break end
-				end
-			end
-		end
-		cell.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
-		cell.name:SetText(row.name)
-	elseif (ns.Profile() or {}).collapse then
-		-- Any heal can land in any row now, so the row underneath cannot honestly name one.
-		cell.icon:SetTexture(nil)
-		cell.name:SetText("")
-	else
-		cell.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
-		cell.name:SetText(row.name)
-	end
+	cell.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
+	cell.name:SetText(row.name)
 	cell.row = row
 	return cell
 end
 
--- How a row looks with a heal on it, and how it looks without one. Kept apart because the
--- preview needs both, one after the other.
-local function ActiveLook(cell, left, period)
-	cell:SetAlpha(1)
-	cell.bar:SetValue(period > 0 and (left / period) or 0)
-	cell.time:SetText(ns.BarTime(left))
-	cell.icon:SetDesaturated(false)
-	cell.icon:SetAlpha(1)
-	cell.bar:SetAlpha(1)
-	cell.name:SetAlpha(1)
-	cell.time:SetAlpha(1)
-	cell.name:SetTextColor(1, 1, 1)
-	cell.name:SetText(cell.row and cell.row.name or "")
-	cell.testActive = true
-end
-
-local function EmptyLook(cell)
-	local p = ns.Profile() or {}
-	cell.bar:SetValue(0)
-	cell.time:SetText("")
-	cell.icon:SetDesaturated(true)
-	cell.icon:SetAlpha(0.35)
-	cell.bar:SetAlpha(0.45)
-	cell.name:SetAlpha(1)
-	cell.time:SetAlpha(1)
-	cell.name:SetTextColor(0.55, 0.53, 0.47)
-	-- Fading the icon, the bar and the two labels was not enough: the frame art, the plate and
-	-- the icon's shadow are put on by the skin and belong to the row, not to those four, so they
-	-- stayed behind as empty squares. The row itself is what goes, which takes everything on it
-	-- with it, and still leaves the game's own row, which is not a child of it, free to show.
-	cell:SetAlpha(p.onlyActive and 0 or 1)
-	cell.testActive = false
-end
-
--- How long a previewed heal stays gone before it comes back.
-local PREVIEW_REST = 5
-
 function Panel:DressCell(cell, testing, now)
-	if not testing then EmptyLook(cell) return end
-	-- A preview that only ever showed full rows was no use for judging a layout that changes
-	-- shape: which way it grows, whether it packs together and what "only what is on you" really
-	-- looks like are all about rows going away. So a previewed heal runs its real length, falls
-	-- off, and comes back, and the rows are offset from each other so they do not do it in step.
-	local dur = (cell.row and cell.row.duration) or 15
-	local period = dur + PREVIEW_REST
-	local t = (now + (cell.testOffset or 0)) % period
-	if t < dur then ActiveLook(cell, dur - t, dur) else EmptyLook(cell) end
+	local w, h = self:BarSize()
+	if testing then
+		-- A preview that moves, so the layout can be judged without waiting on a healer. The clock
+		-- is the heal's own duration, so a test bar runs at the speed the real one will.
+		local period = (cell.row and cell.row.duration) or 15
+		local left = period - ((now + (cell.testOffset or 0)) % period)
+		cell.bar:SetValue(left / period)
+		cell.time:SetText(ns.BarTime(left))
+		cell.icon:SetDesaturated(false)
+		cell.icon:SetAlpha(1)
+		cell.bar:SetAlpha(1)
+		cell.name:SetTextColor(1, 1, 1)
+		cell.time:SetTextColor(1, 1, 1)
+	else
+		cell.bar:SetValue(0)
+		cell.time:SetText("")
+		cell.icon:SetDesaturated(true)
+		-- "Only what is on you" is drawn by drawing nothing: the row underneath goes to nothing
+		-- and the game's own row, which is the only thing that knows whether a heal is there,
+		-- is left to show itself. The row keeps its place so the slot above it keeps its place.
+		cell.icon:SetAlpha(0.35)
+		cell.bar:SetAlpha(0.45)
+		cell.name:SetAlpha(1)
+		cell.time:SetAlpha(1)
+		cell.name:SetTextColor(0.55, 0.53, 0.47)
+	end
 end
 
 -- Built out of combat only: the game refuses to make a container in a fight, and refuses to let a
@@ -581,12 +499,10 @@ function Panel:BuildBars()
 
 	local m = self:RowMetrics()
 	local w, h = m.w, m.h
-	local key = ("%dx%dx%d|%s|%s|%s|%d|"):format(w, h, m.iconSize,
-		tostring(p.growth), tostring(p.collapse), tostring(p.single), m.pitch)
-	local rows = self:Rows()
+	local key = ("%dx%dx%d|"):format(w, h, m.iconSize)
 	local any = false
-	for _, row in ipairs(rows) do
-		local ids = row.any and self:AllHealIds() or ns.Ranks(row.name)
+	for _, row in ipairs(ns.HOTS or {}) do
+		local ids = ns.Ranks(row.name)
 		local list = {}
 		if ids then for id in pairs(ids) do list[#list + 1] = id end end
 		table.sort(list)
@@ -622,14 +538,14 @@ function Panel:BuildBars()
 		holder:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 		self.bars = holder
 	end
-	holder:SetSize(w + 12, #rows * m.pitch + 8)
+	holder:SetSize(w + 12, #(ns.HOTS or {}) * m.pitch + 8)
 	if not self.cells then
 		self.cells = {}
-		for i, row in ipairs(rows) do
+		for i, row in ipairs(ns.HOTS or {}) do
 			-- One row that will not build must not cost the others, nor the slots under them.
 			local okCell, made = pcall(Cell, holder, row, i)
 			if okCell and made then
-				made.testOffset = i * 5
+				made.testOffset = i * 3
 				self.cells[i] = made
 			else
 				ns.report["row " .. row.name] = "refused: " .. tostring(made)
@@ -655,54 +571,11 @@ function Panel:BuildBars()
 	c:Show()
 	self.container = c
 
-	-- Packed together, every slot is offered every heal, so the game fills them from the front
-	-- and what is on you sits at the top with no holes. Which slot a heal lands in is the
-	-- game's to decide: this addon cannot see which of them are filled, so it cannot pack them
-	-- itself. That is the whole reason this is done by handing the game a wider list rather
-	-- than by moving anything.
-	local everything
-	if p.collapse or p.single then
-		everything = self:AllHealIds()
-	end
-	-- Packing the rows together cannot be done by this addon. Which rows are filled is aura data,
-	-- secret here, which is the whole reason the game draws them. Handing every row every heal and
-	-- hoping the game fills them front first was a guess, and a wrong one: it keeps each heal in
-	-- its own row and leaves the hole where the others would be.
-	--
-	-- The game does have a mechanism for a list that changes length, though: a group rather than
-	-- fixed slots, which lays out however many auras match and packs them itself. That is asked for
-	-- first, and the fixed slots stay as the fallback when it is refused.
-	self.grouped = nil
-	if p.collapse and everything and c.AddAuraGroup then
-		local okG, err = pcall(c.AddAuraGroup, c, "heals", "HELPFUL", {
-			maxFrameCount = #rows,
-			initializeFrame = InitSlot(rows[1]),
-			candidateFilters = { includeSpellIDs = everything },
-			layout = {
-				elementWidth = m.w, elementHeight = m.rowH,
-				elementSpacing = max(0, m.pitch - m.rowH), lineSpacing = 0,
-			},
-		})
-		if okG then
-			-- The group places its own frames, so our rows underneath would only sit in the wrong
-			-- places behind them.
-			for _, cell in ipairs(self.cells or {}) do cell:SetAlpha(0) end
-			self.grouped = true
-			self.barKey = key
-			ns.report["packing"] = "the game's own aura group"
-			ns.report["game-drawn bars"] = ("an aura group of up to %d, %dx%d"):format(#rows, w, h)
-			return
-		end
-		ns.report["packing"] = "the game refused an aura group (" .. tostring(err) .. "), so one row per heal"
-	elseif p.collapse then
-		ns.report["packing"] = "this client has no aura group, so one row per heal"
-	end
-
 	local made = 0
-	for i, row in ipairs(rows) do
-		local ids = everything or ns.Ranks(row.name)
+	for i, row in ipairs(ns.HOTS or {}) do
+		local ids = ns.Ranks(row.name)
 		if ids then
-			local okSlot, frame = pcall(c.AddAuraSlot, c, everything and ("row" .. i) or row.name, "HELPFUL", {
+			local okSlot, frame = pcall(c.AddAuraSlot, c, row.name, "HELPFUL", {
 				initializeFrame = InitSlot(row),
 				-- No isFromPlayerOrPlayerPet: the whole point is a heal somebody else cast on you.
 				candidateFilters = { includeSpellIDs = ids },
@@ -723,8 +596,8 @@ function Panel:BuildBars()
 		end
 	end
 	self.barKey = key
-	ns.report["game-drawn bars"] = ("%d of %d slots, %dx%d, icon %d, gap %d%s"):format(
-		made, #rows, w, h, m.iconSize, m.gap, p.single and ", one row for any heal" or "")
+	ns.report["game-drawn bars"] = ("%d of %d slots, %dx%d, icon %d, gap %d"):format(
+		made, #(ns.HOTS or {}), w, h, m.iconSize, m.gap)
 end
 
 function Panel:RefreshBars(now)
@@ -732,7 +605,6 @@ function Panel:RefreshBars(now)
 	local p = ns.Profile()
 	if not p or not self.bars then return end
 	self.bars:SetShown(p.bars ~= false)
-	if self.grouped then return end
 	local testing = p.test and true or false
 	for _, cell in ipairs(self.cells or {}) do self:DressCell(cell, testing, now) end
 end

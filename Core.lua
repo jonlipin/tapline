@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.8.2"
+ns.VERSION = "1.9.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -204,15 +204,6 @@ local DEFAULTS = {
 	bgAlpha = 0.9,   -- the box behind them
 	borderAlpha = 1,
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
-	onlyActive = false, -- draw nothing for a heal that is not on you, rather than an empty row
-	gapExtra = 0,    -- room between icon and bar, ON TOP of the least that avoids an overlap
-	rowGap = 4,      -- room between one row and the next
-	growth = "down", -- which way the rows are laid out from the box's anchor
-	collapse = false, -- every row takes any heal, so what is on you packs to the front
-	single = false,  -- one row for the lot: any heal at all, on one bar
-	edge = "auto",   -- "always" to draw the made frame even when the client offered one
-	minimap = true,
-	minimapAngle = 200,
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -947,7 +938,6 @@ local function Startup()
 	ns.ClearStaleSounds()
 	ns.Sample(GetTime())
 	if ns.Panel then ns.Panel:Init() end
-	if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 	ns.SyncSounds()
 	if C_Timer and C_Timer.After then
 		C_Timer.After(2, function()
@@ -961,7 +951,6 @@ local function Startup()
 		-- is always this session and never a mixture of this one and the last.
 		C_Timer.After(3, function()
 			if ns.Options and ns.Options.RegisterBlizzard then pcall(ns.Options.RegisterBlizzard, ns.Options) end
-			if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 		end)
 		C_Timer.After(4, function() ns.AutoReport() end)
 	end

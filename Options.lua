@@ -223,12 +223,6 @@ function Options:Content()
 	ly = self:Slider(c, left, ly, "Icon size", 0.5, 1.5, 0.05,
 		function() return P().iconScale or 1 end,
 		function(v) P().iconScale = v ns.Panel:Rebuild() end)
-	ly = self:Slider(c, left, ly, "Gap between icon and bar", 0, 40, 1,
-		function() return P().gapExtra or 0 end,
-		function(v) P().gapExtra = v ns.Panel:Rebuild() end)
-	ly = self:Slider(c, left, ly, "Gap between rows", -20, 30, 1,
-		function() return P().rowGap or 4 end,
-		function(v) P().rowGap = v ns.Panel:Rebuild() end)
 	ly = self:Slider(c, left, ly, "Bar opacity", 0.1, 1, 0.05,
 		function() return P().barAlpha or 1 end,
 		function(v) P().barAlpha = v ns.Panel:Restyle() end)
@@ -248,26 +242,10 @@ function Options:Content()
 	ry = self:Heading(c, right, ry, "What to show")
 	ry = self:Check(c, right, ry, "The heal bars", function() return P().bars ~= false end,
 		function(v) P().bars = v if v then ns.Panel:Rebuild() end ns.Panel:Refresh(GetTime()) end)
-	ry = self:Check(c, right, ry, "A button on the minimap", function() return P().minimap ~= false end,
-		function(v) P().minimap = v if ns.MinimapButton then ns.MinimapButton:Refresh() end end)
 	ry = self:Check(c, right, ry, "The Life Tap cost readout", function() return P().shown end,
 		function(v) P().shown = v ns.Panel:Refresh(GetTime()) end)
-	ry = self:Check(c, right, ry, "One bar for any heal, whichever it is",
-		function() return P().single end,
-		function(v) P().single = v ns.Panel:Rebuild() end)
-	ry = self:Check(c, right, ry, "Pack them together, no gaps for heals you do not have",
-		function() return P().collapse end,
-		function(v) P().collapse = v ns.Panel:Rebuild() end)
-	ry = self:Check(c, right, ry, "Grow upwards instead of down",
-		function() return P().growth == "up" end,
-		function(v) P().growth = v and "up" or "down" ns.Panel:Rebuild() end)
-	ry = self:Check(c, right, ry, "Only heals that are actually on you", function() return P().onlyActive end,
-		function(v) P().onlyActive = v ns.Panel:Refresh(GetTime()) end)
 	ry = self:Check(c, right, ry, "Preview: run the bars on a made-up timer", function() return P().test end,
 		function(v) P().test = v ns.Panel:Refresh(GetTime()) end)
-	ry = self:Check(c, right, ry, "Always draw a frame round the bar",
-		function() return P().edge == "always" end,
-		function(v) P().edge = v and "always" or "auto" ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Plain bars: skip the copied Cooldown Manager art", function() return P().plain end,
 		function(v) P().plain = v ns.Panel:Rebuild() end)
 	ry = self:Slider(c, right, ry - 6, "Health to keep back", 0, 90, 5,

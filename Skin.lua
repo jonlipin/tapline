@@ -18,7 +18,6 @@ local Clean = ns.Clean
 local floor, max, min, abs = math.floor, math.max, math.min, math.abs
 
 local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
-local BORDER_FILE = "Interface\\Tooltips\\UI-Tooltip-Border"
 local PLAIN_BAR = "Interface\\TargetingFrame\\UI-StatusBar"
 
 -- Where a Cooldown Manager bar might be found, best first. The viewers hold a pool of item frames;
@@ -116,14 +115,6 @@ local function Describe(region, ref)
 		b = (base.b - r.b) / base.h,
 		w = r.w / base.h,
 		h = r.h / base.h,
-		-- Narrow against the bar's whole length: that is a spark, which sits at the end of the
-		-- fill and moves with it, not a plate that stretches from one end to the other.
-		pip = base.w > 0 and (r.w / base.w) < 0.25 or false,
-		-- Against the bar's own width and height. Measuring a width in multiples of the HEIGHT was
-		-- the mistake: a bar is ten times as wide as it is tall, so its own full length frame looked
-		-- like something enormous and was thrown away.
-		wRatio = base.w > 0 and (r.w / base.w) or 0,
-		hRatio = r.h / base.h,
 	}
 end
 
@@ -183,43 +174,24 @@ function Skin:Reckon()
 
 	if bar then
 		local fillTex = Get(bar, "GetStatusBarTexture")
-		self.fillTex = fillTex
 		if fillTex then
 			self.barAtlas = Get(fillTex, "GetAtlas")
 			self.barTexture = Get(fillTex, "GetTexture") or PLAIN_BAR
 			local ok, cr, cg, cb = pcall(fillTex.GetVertexColor, fillTex)
 			if ok and type(Clean(cr)) == "number" then self.fillColor = { Clean(cr), Clean(cg), Clean(cb) } end
 		end
-		-- The frame, the backing and the spark are the STATUS BAR's own regions here, not the item
-		-- frame's, which is why nothing was being copied and the bars came out plain. Every likely
-		-- home is walked now: the item, the bar, and one level of children beneath the item.
-		local sources, seen = { item }, {}
-		if bar ~= item then sources[#sources + 1] = bar end
-		local okKids, kids = pcall(function() return { item:GetChildren() } end)
-		if okKids and kids then
-			for _, kid in ipairs(kids) do sources[#sources + 1] = kid end
-		end
-		local found = {}
-		for _, source in ipairs(sources) do
-			local okR, regions = pcall(function() return { source:GetRegions() } end)
-			if okR and regions then
-				for _, region in ipairs(regions) do
-					-- The fill itself is worn by our own bar, so it is not decoration to lay on top.
-					if region ~= icon and region ~= fillTex and not seen[region]
-						and Get(region, "GetObjectType") == "Texture" then
-						seen[region] = true
-						local d = Describe(region, bar)
-						-- Decoration belongs to the bar if it is about the bar's size. Generous, since a
-						-- frame reaches past what it frames, but not so generous that a whole window sneaks in.
-						if d and (d.atlas or d.file) and d.wRatio <= 2 and d.hRatio <= 4 then
-							self.pieces[#self.pieces + 1] = d
-							found[#found + 1] = (d.atlas or tostring(d.file)) .. (d.pip and " (spark)" or "")
-						end
+		local okR, regions = pcall(function() return { item:GetRegions() } end)
+		if okR and regions then
+			for _, region in ipairs(regions) do
+				if region ~= icon and Get(region, "GetObjectType") == "Texture" then
+					local d = Describe(region, bar)
+					-- Anything that is not roughly the bar's own size is decoration we do not want.
+					if d and (d.atlas or d.file) and d.w < 6 and d.h < 6 then
+						self.pieces[#self.pieces + 1] = d
 					end
 				end
 			end
 		end
-		ns.report["bar pieces"] = #found > 0 and table.concat(found, ", ") or "none found on the item, the bar or its children"
 		-- The fonts: which end each sits at, and how big against the bar.
 		local okF, fonts = pcall(function()
 			local out = {}
@@ -295,67 +267,25 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		if d.color then t:SetVertexColor(d.color[1], d.color[2], d.color[3], d.color[4] or 1) end
 		if d.blend then pcall(t.SetBlendMode, t, d.blend) end
 		t:ClearAllPoints()
-		if d.pip then
-			-- A spark keeps its own size and sits on the end of the fill, so it travels with it.
-			local fill = bar:GetStatusBarTexture()
-			t:SetSize(max(2, (d.w or 0.2) * height), max(2, (d.h or 1) * height))
-			t:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
-			t:SetDrawLayer("OVERLAY", 2)
-			bar.tlPip = t
-		else
-			t:SetPoint("TOPLEFT", bar, "TOPLEFT", -(d.l or 0) * height, (d.t or 0) * height)
-			t:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", (d.rr or 0) * height, -(d.b or 0) * height)
-		end
+		t:SetPoint("TOPLEFT", bar, "TOPLEFT", -(d.l or 0) * height, (d.t or 0) * height)
+		t:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", (d.rr or 0) * height, -(d.b or 0) * height)
 		t:Show()
 	end
-	-- What the client actually handed over, piece by piece. The old test was whether ANY art had
-	-- been copied, which is far too coarse: the moment one stray texture was found the hand-made
-	-- frame stopped being drawn, and if that texture was not a frame the bar simply lost its edge.
-	-- Each part of the look is asked for separately now, and made by hand only where it is missing.
-	local hasFrame, hasPip = false, false
-	for _, d in ipairs(self.pieces) do
-		if d.pip then hasPip = true
-		-- A frame is a piece that reaches PAST what it frames. Anything sitting inside the bar is a
-		-- backing, and a backing is not an edge.
-		elseif (d.l or 0) > 0.01 or (d.rr or 0) > 0.01 or (d.t or 0) > 0.01 or (d.b or 0) > 0.01 then
-			hasFrame = true
-		end
-	end
-	local forced = (ns.Profile() or {}).edge == "always"
-
-	if not hasFrame or forced then
+	if #self.pieces == 0 then
+		-- Nothing to copy, so a frame of our own in the same spirit: a thin warm line round a dark
+		-- plate, which is what the manager's bars read as from a distance.
 		if not bar.tlEdge then
 			local okE, edge = pcall(CreateFrame, "Frame", nil, bar, "BackdropTemplate")
-			if okE and edge and edge.SetBackdrop then
+			if not okE then edge = nil end
+			if edge.SetBackdrop then
 				edge:SetPoint("TOPLEFT", -2, 2)
 				edge:SetPoint("BOTTOMRIGHT", 2, -2)
-				edge:SetBackdrop({ edgeFile = BORDER_FILE, edgeSize = 10 })
+				edge:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
 				edge:SetBackdropBorderColor(0.72, 0.60, 0.36, 1)
 				bar.tlEdge = edge
 			end
 		end
-		if bar.tlEdge then bar.tlEdge:Show() end
-	elseif bar.tlEdge then
-		bar.tlEdge:Hide()
 	end
-
-	if not hasPip and not bar.tlPip then
-		-- No spark to copy, so one of our own: a bright sliver riding the end of the fill, which is
-		-- what makes a bar read as moving rather than merely long.
-		local pip = bar:CreateTexture(nil, "OVERLAY", nil, 2)
-		pip:SetColorTexture(1, 0.93, 0.75, 0.85)
-		pcall(pip.SetBlendMode, pip, "ADD")
-		bar.tlPip, bar.tlOwnPip = pip, true
-	end
-	if bar.tlOwnPip and bar.tlPip then
-		local fill = bar:GetStatusBarTexture()
-		bar.tlPip:SetSize(max(2, height * 0.12), max(4, height))
-		bar.tlPip:ClearAllPoints()
-		bar.tlPip:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
-		bar.tlPip:Show()
-	end
-	ns.report["bar frame"] = (hasFrame and not forced) and "copied from the client" or "made here"
-	ns.report["bar spark"] = hasPip and "copied from the client" or "made here"
 
 	if icon then
 		if self.iconMask and icon.AddMaskTexture and not icon.tlMask then
@@ -374,23 +304,13 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 			if not okO then o = nil end
 			if o then
 			-- Measured off the manager: the overlay is not square, reaching further across than down.
-			local okAtlas = o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay")
-			ns.report["icon shadow"] = okAtlas and "the manager's own overlay" or "this client has no icon overlay atlas"
-			if okAtlas and o then
+			if o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay") then
 				local w, h = 0.200, 0.175
 				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * w, iconSize * h)
 				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * w, -iconSize * h)
 				icon.tlOverlay = o
-			elseif o then
-				-- Nothing to copy, so a dark halo a little larger than the picture, which is what that
-				-- overlay amounts to: it is a shadow, not a border.
-				o:SetColorTexture(0, 0, 0, 0.55)
-				o:SetDrawLayer("BACKGROUND", -2)
-				o:ClearAllPoints()
-				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * 0.08, iconSize * 0.08)
-				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * 0.08, -iconSize * 0.08)
-				o:Show()
-				ns.report["icon shadow"] = "made here: this client has no overlay atlas"
+			else
+				o:Hide()
 			end
 			end
 		end
