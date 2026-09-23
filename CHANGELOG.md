@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.10.3
+
+- **The spark is Blizzard's own art again, not a coloured rectangle.** 1.10.2 drew one here because a copied texture that does not render is indistinguishable from no texture at all, and there was no way from inside the addon to tell them apart. There is: `C_Texture.GetAtlasInfo` answers outright whether this client has a given atlas. That settles the problem that had dogged the whole skin.
+
+So the spark is taken in three goes, best first:
+
+1. the piece measured off the manager's own bar, if its atlas really exists here
+2. the manager's spark asked for by name, if that exists
+3. a plain sliver drawn here, only when this client has neither
+
+The middle step earns its place because the donor bar is not always carrying a spark at the moment it is read: a bar with nothing running has nothing at its end to measure.
+
+Where the real art is used it keeps that art's own proportions, scaled to your bar height, so it is Blizzard's shape rather than a rectangle of mine. `/tapline debug` names which of the three you got, and which atlas.
+
+### On the harness, again
+
+The checks passed on the version that could not find the atlas, because the stub client had never been told the Cooldown Manager's atlas names and so denied having any of them. It knows them now, and three checks were added: that the real art is preferred where it exists, that it keeps its own proportions, and that the drawn fallback only appears where the client genuinely has nothing. Two of them failed before this fix.
+
 ## 1.10.2
 
 - **The spark is drawn here now, always, even when the client offers one of its own.**

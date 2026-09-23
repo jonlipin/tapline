@@ -27,6 +27,28 @@ local DONOR_VIEWERS = { "BuffBarCooldownViewer", "EssentialCooldownViewer", "Buf
 local DONOR_TEMPLATES = { "CooldownViewerBuffBarItemTemplate", "CooldownViewerBarItemTemplate" }
 local DONOR_FRAMES = { "PlayerCastingBarFrame", "CastingBarFrame" }
 
+-- Whether this client actually has an atlas. This is the answer to the problem that dogged the
+-- whole skin: a texture set to art the client does not have renders as nothing, and nothing looks
+-- exactly like a piece that was never copied. Asked outright, the two stop being alike.
+local function AtlasExists(name)
+	if type(name) ~= "string" then return false end
+	if C_Texture and C_Texture.GetAtlasInfo then
+		local ok, info = pcall(C_Texture.GetAtlasInfo, name)
+		return (ok and type(info) == "table") and info or false
+	end
+	-- No way to ask, so let the art speak for itself.
+	return true
+end
+
+-- Blizzard's own spark, by the names the Cooldown Manager uses for it, in case the donor bar is
+-- not carrying one where it can be measured.
+local SPARK_ATLASES = {
+	"UI-HUD-CoolDownManager-Bar-Pip",
+	"UI-HUD-CoolDownManager-Bar-Spark",
+	"UI-HUD-CoolDownManager-Bar-Glow",
+	"UI-HUD-CoolDownManager-Bar-Tick",
+}
+
 local function Rect(o)
 	local ok, l, r, t, b = pcall(function() return o:GetLeft(), o:GetRight(), o:GetTop(), o:GetBottom() end)
 	if not ok then return nil end
@@ -339,33 +361,56 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		bar.tlEdge:Hide()
 	end
 
-	-- The spark is ours, always, even when the client offered one.
+	-- The spark: Blizzard's own art where this client has it, and a plain sliver only when it has
+	-- not. It is taken in three goes, best first.
 	--
-	-- Everything else in this file is copied on the principle that the client knows best, and for
-	-- the spark that principle broke down: a copied texture that does not render looks exactly like
-	-- no texture at all, and there is no way from in here to tell those apart. The spark also has
-	-- to sit precisely where the fill ends, which is the one place a wrongly measured piece is most
-	-- obvious. So it is drawn here, where its size, its colour and its position are known.
+	--   1. the piece measured off the donor bar, if its atlas really exists
+	--   2. the manager's spark asked for by name, if that exists
+	--   3. a sliver drawn here, which is at least certain to appear
+	--
+	-- The middle step is worth having because the donor is not always carrying a spark at the
+	-- moment it is read: a bar with nothing running has nothing at its end to measure.
 	if bar.tlCopiedPip then bar.tlCopiedPip:Hide() end
 	local wantSpark = (ns.Profile() or {}).spark ~= false
 	if wantSpark then
-		if not bar.tlSpark then
-			local spark = bar:CreateTexture(nil, "OVERLAY", nil, 3)
+		local picked, info, how
+		for _, d in ipairs(self.pieces) do
+			if d.pip and not picked then
+				local exists = AtlasExists(d.atlas)
+				if exists then picked, info, how = d.atlas, exists, "measured off the manager's own bar" end
+			end
+		end
+		if not picked then
+			for _, name in ipairs(SPARK_ATLASES) do
+				local exists = AtlasExists(name)
+				if exists and not picked then picked, info, how = name, exists, "the manager's own art, by name" end
+			end
+		end
+		if not bar.tlSpark then bar.tlSpark = bar:CreateTexture(nil, "OVERLAY", nil, 3) end
+		local spark = bar.tlSpark
+		local tall = max(6, floor(height * 1.15 + 0.5))
+		if picked and spark.SetAtlas and pcall(spark.SetAtlas, spark, picked) then
+			-- Its own proportions, scaled to this bar, so it is Blizzard's shape and not a rectangle.
+			local ratio = (type(info) == "table" and tonumber(info.width) and tonumber(info.height) and info.height > 0)
+				and (info.width / info.height) or 0.2
+			spark:SetSize(max(3, floor(tall * ratio + 0.5)), tall)
+			pcall(spark.SetVertexColor, spark, 1, 1, 1, 1)
+			ns.report["bar spark"] = ("%s (%s)"):format(picked, how)
+		else
+			-- Nothing of Blizzard's to be had here, so something certain instead.
+			pcall(spark.SetAtlas, spark, nil)
 			spark:SetColorTexture(1, 0.97, 0.88, 0.9)
 			pcall(spark.SetBlendMode, spark, "ADD")
-			bar.tlSpark = spark
+			spark:SetSize(max(3, floor(height * 0.18 + 0.5)), tall)
+			ns.report["bar spark"] = "drawn here: this client has none of the manager's spark art"
 		end
-		local fill = bar:GetStatusBarTexture()
-		-- Wider than a hairline and a little taller than the bar, so it reads at a glance on a bar
-		-- only fifteen or twenty pixels high, which is where these usually end up.
-		bar.tlSpark:SetSize(max(3, floor(height * 0.18 + 0.5)), max(6, floor(height * 1.15 + 0.5)))
-		bar.tlSpark:ClearAllPoints()
-		bar.tlSpark:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
-		bar.tlSpark:Show()
-	elseif bar.tlSpark then
-		bar.tlSpark:Hide()
+		spark:ClearAllPoints()
+		spark:SetPoint("CENTER", bar:GetStatusBarTexture() or bar, "RIGHT", 0, 0)
+		spark:Show()
+	else
+		if bar.tlSpark then bar.tlSpark:Hide() end
+		ns.report["bar spark"] = "off"
 	end
-	ns.report["bar spark"] = wantSpark and (hasPip and "drawn here, though the client offered one" or "drawn here") or "off"
 	ns.report["bar frame"] = (hasFrame and not forced) and "copied from the client" or "made here"
 
 	if icon then
