@@ -249,7 +249,9 @@ local function Command(msg)
 	elseif sub == "forget" then
 		ns.db.learned = {}
 		ns.db.quietAboutMissing = nil
-		ns.rankState = nil
+		-- Emptied, not replaced: the table is held as an upvalue inside Core, so swapping it here
+		-- would leave the two looking at different things and the report reading off a ghost.
+		for key in pairs(ns.rankState or {}) do ns.rankState[key] = nil end
 		Print("Forgot every learned spell id. Type /reload to start again from what is written down.")
 	elseif sub == "minimap" then
 		p.minimap = not (p.minimap ~= false)

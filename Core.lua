@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.12.1"
+ns.VERSION = "1.12.2"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -153,12 +153,24 @@ function ns.Ranks(name)
 	local row = rankIndex[strlower(name)]
 	local st = rankState[name]
 	if not st then
-		st = { ids = {}, tries = 0, kept = 0, dropped = 0, pending = row and #row.ids or 0, learned = 0 }
+		st = { ids = {}, tries = 0, kept = 0, dropped = 0, pending = row and #row.ids or 0, learned = 0, nextTry = 0 }
 		rankState[name] = st
 	end
 	-- The ids written down in Data.lua, kept only where this client agrees they carry that name.
-	if row and st.pending > 0 and st.tries < 4 then
+	-- Spaced out, and this matters more than it looks.
+	--
+	-- Asking the client to load a spell's data is asynchronous: the answer arrives some time
+	-- after the asking. This is called many times over while the rows are built, so four tries
+	-- with no spacing were all spent within the same few milliseconds, every one of them before
+	-- the first request could possibly have been answered. A heal whose id was perfectly correct
+	-- then looked like one this client did not have.
+	--
+	-- "0 dropped" in the report is the tell: an id belonging to another spell is dropped, so
+	-- nothing dropped and nothing kept means nothing ever answered.
+	local now = GetTime()
+	if row and st.pending > 0 and st.tries < 8 and now >= (st.nextTry or 0) then
 		st.tries = st.tries + 1
+		st.nextTry = now + 1
 		st.kept, st.dropped, st.pending = 0, 0, 0
 		local want = strlower(row.spell)
 		for _, id in ipairs(row.ids) do
@@ -1022,7 +1034,19 @@ local function Startup()
 			if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 		end)
 		C_Timer.After(4, function() ns.AutoReport() end)
-		C_Timer.After(5, function()
+		-- Ask again a few seconds later, by which time the client has usually answered.
+		for _, wait in ipairs({ 3, 6, 10 }) do
+			C_Timer.After(wait, function()
+				local had = ns.Panel and #ns.Panel:KnownHots() or 0
+				for _, hot in ipairs(ns.HOTS or {}) do ns.Ranks(hot.name) end
+				if ns.Panel and #ns.Panel:KnownHots() ~= had
+					and not (InCombatLockdown and InCombatLockdown()) then
+					ns.SyncSounds()
+					ns.Panel:Rebuild()
+				end
+			end)
+		end
+		C_Timer.After(12, function()
 			local missing = {}
 			for _, hot in ipairs(ns.HOTS or {}) do
 				if not ns.Ranks(hot.name) then missing[#missing + 1] = hot.name end
@@ -1076,6 +1100,23 @@ function ns.OnEvent(event, a1, _, a3)
 		S.hp, S.hpMax = nil, nil
 		ns.Sample(GetTime())
 		if ns.Panel then ns.Panel:BuildBars() end
+	elseif event == "SPELL_DATA_LOAD_RESULT" then
+		-- The client has finished loading a spell we asked after, so the question is worth
+		-- reopening at once rather than on whatever tick happens next.
+		for _, st in pairs(ns.rankState) do
+			if st.pending and st.pending > 0 then st.nextTry = 0 end
+		end
+		if ns.Panel and not (InCombatLockdown and InCombatLockdown()) then
+			-- Asking again is what KnownHots does, so the count before and after it says whether this
+			-- answer was one we were waiting on.
+			local before = ns.healsKnown or 0
+			local now = #ns.Panel:KnownHots()
+			ns.healsKnown = now
+			if now ~= before then
+				ns.SyncSounds()
+				ns.Panel:Rebuild()
+			end
+		end
 	elseif event == "ADDON_RESTRICTION_STATE_CHANGED" then
 		S.incomingMemo = nil
 	end
@@ -1084,7 +1125,7 @@ end
 ev:SetScript("OnEvent", function(_, event, a1, a2, a3) ns.OnEvent(event, a1, a2, a3) end)
 ev:RegisterEvent("ADDON_LOADED")
 ev:RegisterEvent("PLAYER_LOGIN")
-for _, event in ipairs({ "UNIT_AURA", "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_POWER_UPDATE", "UNIT_SPELLCAST_SUCCEEDED",
+for _, event in ipairs({ "SPELL_DATA_LOAD_RESULT", "UNIT_AURA", "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_POWER_UPDATE", "UNIT_SPELLCAST_SUCCEEDED",
 	"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD",
 	"ADDON_RESTRICTION_STATE_CHANGED" }) do
 	local ok = pcall(ev.RegisterEvent, ev, event)

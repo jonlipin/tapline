@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.12.2
+
+- **Fixed: Riptide and Wild Growth were being given up on before the client had a chance to answer.** Their ids were very likely right all along.
+
+Asking the client to load a spell's data is asynchronous: the answer arrives some time after the asking. The retries had no spacing, and the question gets asked many times over while the rows are built, so all four were spent within the same few milliseconds, every one of them before the first request could possibly have been answered. A heal whose id was perfectly correct then looked like one this client does not have.
+
+The report said so, once it was read properly. **`0 dropped`** is the tell: an id that belongs to some other spell gets dropped, so nothing dropped and nothing kept means nothing ever answered. Wowhead confirms 61295 is Riptide and that its heal over time uses that same id, which is what was in the list all along.
+
+Retries are now a second apart, there are eight of them, and the question is asked again at three, six and ten seconds after login. When the client says it has finished loading a spell, the question is reopened there and then rather than waiting for the next tick, and the bars and alerts are rebuilt if that answer changed anything.
+
+- Fixed: `/tapline forget` replaced the table holding what had been resolved instead of emptying it, which left the addon and its own report looking at two different things. It empties it now.
+
 ## 1.12.1
 
 Riptide and Wild Growth were listed but never drawn, and the report said exactly why:
