@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.12.1
+
+Riptide and Wild Growth were listed but never drawn, and the report said exactly why:
+
+```
+Riptide:     0 ranks agreed, 0 dropped, 4 still unknown after 4 tries
+Wild Growth: 0 ranks agreed, 0 dropped, 4 still unknown after 4 tries
+heals this client has: 3 of 5, without Riptide, Wild Growth
+```
+
+These are Forever's own spells and the ids written down for them, taken from another version of the game, do not exist here. Withholding them was right, but waiting for one to land on a warlock is a poor way to find out what they are.
+
+- **`/tapline learn <spell id>`**, or a spell link shift clicked into the chat box and pasted. It checks the id really is that heal on this client before keeping it, and refuses anything that is not one of the heals it watches, saying which it got instead.
+- **It now asks the client to name each unknown heal outright**, once, at login. Some clients will name a spell whether you can cast it or not, and where that works no teaching is needed at all.
+- **It says what it is still missing**, once, rather than leaving an absent row to be noticed: which heals have no id yet, and the two ways to give it one.
+- **`/tapline learn`** on its own lists the heals still without an id.
+- **`/tapline forget`** throws away everything learned and starts again from what is written down.
+
+Anything taught is kept account wide and announced when it is learned, the same as one picked up by watching, so there is never a spell id in use that was not reported.
+
 ## 1.12.0
 
 - **Riptide and Wild Growth are watched for**, with the durations this client's own spell text gives: Riptide heals "an additional 445 over 15 sec", Wild Growth "336 over 7 sec". Lifebloom is not in this game, so it is not listed.

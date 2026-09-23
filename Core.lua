@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.12.0"
+ns.VERSION = "1.12.1"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -195,6 +195,56 @@ end
 -- a guess, and a wrong guess means a heal that never shows. An id seen once is worth more than any
 -- number of them written from memory, and it is kept in the saved variables so it is only ever
 -- learned once, by whichever character happens to be standing near a healer.
+-- Remember one id for one heal. Everything that learns goes through here, so a thing learned is
+-- always announced and always written down in the same place.
+function ns.LearnOne(name, id)
+	if not ns.db then return false end
+	ns.db.learned = type(ns.db.learned) == "table" and ns.db.learned or {}
+	local proper
+	for _, hot in ipairs(ns.HOTS or {}) do
+		if strlower(hot.name) == strlower(tostring(name)) then proper = hot.name end
+	end
+	if not proper or type(id) ~= "number" then return false end
+	local bag = ns.db.learned[proper]
+	if not bag then bag = {} ns.db.learned[proper] = bag end
+	if bag[id] then return false end
+	bag[id] = true
+	Print(("Learned that %s is spell %d on this client. It will be watched for from now on."):format(proper, id))
+	return true
+end
+
+-- Taught by hand: a spell id, or a spell link shift clicked out of a spellbook or a chat line.
+-- Standing next to the right class and waiting is the other way, and not always a convenient one.
+function ns.Teach(text)
+	text = tostring(text or "")
+	local id = tonumber(text:match("spell:(%d+)")) or tonumber(text:match("^%s*(%d+)%s*$"))
+	if not id then
+		-- A name, then, if this client will turn one into a spell.
+		local bare = text:match("%[(.-)%]") or text
+		local found, _, foundId = ns.SpellInfo(bare)
+		if found and foundId then id = foundId end
+		if not id then
+			Print(("Could not make a spell out of %q. Give it a spell id, or shift click the spell into the chat box to paste a link."):format(bare))
+			return false
+		end
+	end
+	local name = ns.SpellInfo(id)
+	if not name then
+		Print(("This client does not have a spell %d."):format(id))
+		return false
+	end
+	if ns.LearnOne(name, id) then
+		ns.SyncSounds()
+		if ns.Panel and not (InCombatLockdown and InCombatLockdown()) then ns.Panel:Rebuild() end
+		return true
+	end
+	local known = false
+	for _, hot in ipairs(ns.HOTS or {}) do if strlower(hot.name) == strlower(name) then known = true end end
+	if known then Print(("%s (spell %d) was already known."):format(name, id))
+	else Print(("Spell %d is %s, which is not a heal over time this addon watches for."):format(id, name)) end
+	return false
+end
+
 function ns.Learn()
 	if ns.AurasSecret() then return 0 end
 	local C = C_UnitAuras
@@ -204,14 +254,13 @@ function ns.Learn()
 	for _, hot in ipairs(ns.HOTS or {}) do wanted[strlower(hot.name)] = hot.name end
 	local found = 0
 	local function note(name, id)
-		local proper = name and wanted[strlower(name)]
-		if not (proper and type(id) == "number") then return end
-		local bag = ns.db.learned[proper]
-		if not bag then bag = {} ns.db.learned[proper] = bag end
-		if not bag[id] then
-			bag[id] = true
-			found = found + 1
-			ns.Print(("Learned that %s is spell %d on this client. It will be watched for from now on."):format(proper, id))
+		if name and wanted[strlower(name)] and ns.LearnOne(name, id) then found = found + 1 end
+	end
+	-- Worth one ask: some clients will name a spell straight off, known to you or not.
+	for _, hot in ipairs(ns.HOTS or {}) do
+		if not ns.Ranks(hot.name) then
+			local name, _, id = ns.SpellInfo(hot.name)
+			if name and id and strlower(name) == strlower(hot.name) then note(name, id) end
 		end
 	end
 	if C.GetAuraDataBySpellName then
@@ -973,6 +1022,17 @@ local function Startup()
 			if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 		end)
 		C_Timer.After(4, function() ns.AutoReport() end)
+		C_Timer.After(5, function()
+			local missing = {}
+			for _, hot in ipairs(ns.HOTS or {}) do
+				if not ns.Ranks(hot.name) then missing[#missing + 1] = hot.name end
+			end
+			if #missing > 0 and not ns.db.quietAboutMissing then
+				ns.db.quietAboutMissing = true
+				Print(("No spell id yet for %s, so %s not drawn. One landing on you will teach it, or use /tapline learn <spell id or link>."):format(
+					table.concat(missing, " or "), #missing == 1 and "it is" or "they are"))
+			end
+		end)
 	end
 end
 

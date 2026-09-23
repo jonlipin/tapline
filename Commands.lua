@@ -189,6 +189,8 @@ function ns.Usage()
 	local p = ns.Profile() or {}
 	Print("v" .. ns.VERSION .. ", commands:")
 	Print("  /tapline - open the options page, in the game's own options window where it will")
+	Print("  /tapline learn <spell id or link> - teach it a heal this client has that it cannot name")
+	Print("  /tapline forget - throw away every learned spell id and start again")
 	Print("  /tapline minimap - show or hide the button on the minimap")
 	Print("  /tapline gap <-40-40> | rowgap <-20-30> - room beside the icon, and between rows")
 	Print("  /tapline edge - always draw a frame round the bar, even if the client gave us one")
@@ -232,6 +234,23 @@ local function Command(msg)
 		ns.Panel:Rebuild()
 		local m = ns.Panel:RowMetrics()
 		Print(("Icon to bar %d, row to row %d."):format(m.gap, m.pitch - m.rowH))
+	elseif sub == "learn" then
+		if tail == "" then
+			Print("Give it a spell id, or shift click a spell into the chat box and paste the link.")
+			local missing = {}
+			for _, hot in ipairs(ns.HOTS or {}) do
+				if not ns.Ranks(hot.name) then missing[#missing + 1] = hot.name end
+			end
+			Print(#missing > 0 and ("Still without an id: " .. table.concat(missing, ", "))
+				or "Every heal on the list has an id already.")
+		else
+			ns.Teach(tail)
+		end
+	elseif sub == "forget" then
+		ns.db.learned = {}
+		ns.db.quietAboutMissing = nil
+		ns.rankState = nil
+		Print("Forgot every learned spell id. Type /reload to start again from what is written down.")
 	elseif sub == "minimap" then
 		p.minimap = not (p.minimap ~= false)
 		if ns.MinimapButton then ns.MinimapButton:Refresh() end
