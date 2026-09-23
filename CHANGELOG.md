@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.8.1
+
+- **Fixed: no spark, and no shadow on the icons.** Both came from the same place. The skin was reporting "0 pieces", meaning it had copied the manager's fill colour and nothing else, and there were two reasons for that stacked on top of each other.
+
+First, it only looked at the donor item frame's own regions. The Cooldown Manager keeps its frame, its backing and its spark on the **status bar**, not on the item, so there was never anything to find. It now walks the item, the bar, and one level of children beneath the item.
+
+Second, and worse, the filter that decides what counts as decoration measured a piece's width in multiples of the bar's **height**. A bar is about ten times as wide as it is tall, so the bar's own full-length frame looked like something enormous and was thrown out. It is measured against the bar's own width now, so full-length art is kept and only genuinely oversized things are skipped.
+
+- **The spark is treated as a spark.** A piece that is narrow against the bar's length keeps its own size and rides the end of the fill, travelling with it, instead of being stretched from one end to the other like a plate.
+- `/tapline debug` now lists every piece of art it copied, by atlas name, and says where the icon's shadow came from or that this client has no overlay atlas for it.
+
+### And the harness, which had been passing on nothing
+
+The 177 checks passed on the broken version, because the stub's donor had no art on its bar for the code to miss. There is a proper one now, shaped the way the real thing is: the icon on the item, and the frame, backing and spark on the bar, at real coordinates. Nine checks run against it and six of them failed on the old code, including the width filter throwing away full-length art and the spark being stretched instead of parked at the fill's edge.
+
 ## 1.8.0
 
 - **New: one bar for any heal at all.** A tickbox in the options, or `/tapline single`. It draws a single row and gives that one slot every rank of every heal, so whichever of them is on you shows there, with its own icon, its own name and its own countdown, and nothing shows when none is. It does not matter which heal it is as long as there is one, and this says exactly that.

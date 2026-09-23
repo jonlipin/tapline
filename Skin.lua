@@ -115,6 +115,14 @@ local function Describe(region, ref)
 		b = (base.b - r.b) / base.h,
 		w = r.w / base.h,
 		h = r.h / base.h,
+		-- Narrow against the bar's whole length: that is a spark, which sits at the end of the
+		-- fill and moves with it, not a plate that stretches from one end to the other.
+		pip = base.w > 0 and (r.w / base.w) < 0.25 or false,
+		-- Against the bar's own width and height. Measuring a width in multiples of the HEIGHT was
+		-- the mistake: a bar is ten times as wide as it is tall, so its own full length frame looked
+		-- like something enormous and was thrown away.
+		wRatio = base.w > 0 and (r.w / base.w) or 0,
+		hRatio = r.h / base.h,
 	}
 end
 
@@ -174,24 +182,43 @@ function Skin:Reckon()
 
 	if bar then
 		local fillTex = Get(bar, "GetStatusBarTexture")
+		self.fillTex = fillTex
 		if fillTex then
 			self.barAtlas = Get(fillTex, "GetAtlas")
 			self.barTexture = Get(fillTex, "GetTexture") or PLAIN_BAR
 			local ok, cr, cg, cb = pcall(fillTex.GetVertexColor, fillTex)
 			if ok and type(Clean(cr)) == "number" then self.fillColor = { Clean(cr), Clean(cg), Clean(cb) } end
 		end
-		local okR, regions = pcall(function() return { item:GetRegions() } end)
-		if okR and regions then
-			for _, region in ipairs(regions) do
-				if region ~= icon and Get(region, "GetObjectType") == "Texture" then
-					local d = Describe(region, bar)
-					-- Anything that is not roughly the bar's own size is decoration we do not want.
-					if d and (d.atlas or d.file) and d.w < 6 and d.h < 6 then
-						self.pieces[#self.pieces + 1] = d
+		-- The frame, the backing and the spark are the STATUS BAR's own regions here, not the item
+		-- frame's, which is why nothing was being copied and the bars came out plain. Every likely
+		-- home is walked now: the item, the bar, and one level of children beneath the item.
+		local sources, seen = { item }, {}
+		if bar ~= item then sources[#sources + 1] = bar end
+		local okKids, kids = pcall(function() return { item:GetChildren() } end)
+		if okKids and kids then
+			for _, kid in ipairs(kids) do sources[#sources + 1] = kid end
+		end
+		local found = {}
+		for _, source in ipairs(sources) do
+			local okR, regions = pcall(function() return { source:GetRegions() } end)
+			if okR and regions then
+				for _, region in ipairs(regions) do
+					-- The fill itself is worn by our own bar, so it is not decoration to lay on top.
+					if region ~= icon and region ~= fillTex and not seen[region]
+						and Get(region, "GetObjectType") == "Texture" then
+						seen[region] = true
+						local d = Describe(region, bar)
+						-- Decoration belongs to the bar if it is about the bar's size. Generous, since a
+						-- frame reaches past what it frames, but not so generous that a whole window sneaks in.
+						if d and (d.atlas or d.file) and d.wRatio <= 2 and d.hRatio <= 4 then
+							self.pieces[#self.pieces + 1] = d
+							found[#found + 1] = (d.atlas or tostring(d.file)) .. (d.pip and " (spark)" or "")
+						end
 					end
 				end
 			end
 		end
+		ns.report["bar pieces"] = #found > 0 and table.concat(found, ", ") or "none found on the item, the bar or its children"
 		-- The fonts: which end each sits at, and how big against the bar.
 		local okF, fonts = pcall(function()
 			local out = {}
@@ -267,8 +294,17 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		if d.color then t:SetVertexColor(d.color[1], d.color[2], d.color[3], d.color[4] or 1) end
 		if d.blend then pcall(t.SetBlendMode, t, d.blend) end
 		t:ClearAllPoints()
-		t:SetPoint("TOPLEFT", bar, "TOPLEFT", -(d.l or 0) * height, (d.t or 0) * height)
-		t:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", (d.rr or 0) * height, -(d.b or 0) * height)
+		if d.pip then
+			-- A spark keeps its own size and sits on the end of the fill, so it travels with it.
+			local fill = bar:GetStatusBarTexture()
+			t:SetSize(max(2, (d.w or 0.2) * height), max(2, (d.h or 1) * height))
+			t:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
+			t:SetDrawLayer("OVERLAY", 2)
+			bar.tlPip = t
+		else
+			t:SetPoint("TOPLEFT", bar, "TOPLEFT", -(d.l or 0) * height, (d.t or 0) * height)
+			t:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", (d.rr or 0) * height, -(d.b or 0) * height)
+		end
 		t:Show()
 	end
 	if #self.pieces == 0 then
@@ -304,7 +340,9 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 			if not okO then o = nil end
 			if o then
 			-- Measured off the manager: the overlay is not square, reaching further across than down.
-			if o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay") then
+			local okAtlas = o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay")
+			ns.report["icon shadow"] = okAtlas and "the manager's own overlay" or "this client has no icon overlay atlas"
+			if okAtlas then
 				local w, h = 0.200, 0.175
 				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * w, iconSize * h)
 				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * w, -iconSize * h)
