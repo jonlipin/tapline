@@ -26,7 +26,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.0.0"
+ns.VERSION = "1.0.1"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -210,18 +210,63 @@ local Blind = ns.Blind
 -- number. Whether that holds on this client is the single thing the whole panel rests on, so each
 -- read keeps its refusal and the panel shows it rather than saying "unreadable".
 -- ------------------------------------------------------------------
--- The player frame draws a health bar whatever the API will tell an addon, so it is worth asking
--- when the plain call will not answer.
-local function FromBar(barName)
-	local bar = _G[barName]
-	if not bar then return nil, nil, "no " .. barName end
-	local v, why = Read(bar.GetValue, bar)
-	if not v then return nil, nil, barName .. " " .. tostring(why) end
-	local ok, lo, hi = pcall(bar.GetMinMaxValues, bar)
-	if not ok then return nil, nil, barName .. " " .. Reason(lo) end
-	hi = Clean(hi)
-	if type(hi) ~= "number" or hi <= 0 then return nil, nil, barName .. " has no maximum" end
-	return v, hi, nil
+-- Where a health or mana bar might be found. The player frame is not the object it used to be on
+-- this client, and a name that was right for years is worth nothing here, so every candidate is
+-- tried and the report says which of them exist at all.
+ns.BAR_PATHS = {
+	health = {
+		"PlayerFrameHealthBar",
+		"PlayerFrame.healthbar",
+		"PlayerFrame.HealthBar",
+		"PlayerFrame.healthBar",
+		"PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HealthBarsContainer.HealthBar",
+		"PlayerFrame.healthBarContainer.healthBar",
+	},
+	mana = {
+		"PlayerFrameManaBar",
+		"PlayerFrame.manabar",
+		"PlayerFrame.ManaBar",
+		"PlayerFrame.manaBar",
+		"PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.ManaBarArea.ManaBar",
+	},
+}
+
+-- Walks a dotted path from the globals. Every step is guarded: an index on a forbidden object is
+-- an error here, not a nil.
+function ns.Resolve(path)
+	local obj = _G
+	for part in tostring(path):gmatch("[^%.]+") do
+		if type(obj) ~= "table" then return nil end
+		local ok, v = pcall(function() return obj[part] end)
+		if not ok or v == nil then return nil end
+		obj = v
+	end
+	return obj
+end
+
+-- The first bar on the list that will give up a pair of plain numbers.
+local function FromBar(which)
+	local tried = {}
+	for _, path in ipairs(ns.BAR_PATHS[which] or {}) do
+		local bar = ns.Resolve(path)
+		if not bar then
+			tried[#tried + 1] = path .. " (missing)"
+		else
+			local v, why = Read(bar.GetValue, bar)
+			if not v then
+				tried[#tried + 1] = path .. " " .. tostring(why)
+			else
+				local ok, _, hi = pcall(bar.GetMinMaxValues, bar)
+				hi = ok and Clean(hi) or nil
+				if type(hi) == "number" and hi > 0 then
+					ns.report[which .. " bar"] = path
+					return v, hi, nil
+				end
+				tried[#tried + 1] = path .. " has no maximum"
+			end
+		end
+	end
+	return nil, nil, "no bar to read either (" .. table.concat(tried, "; ") .. ")"
 end
 
 function ns.ReadVitals()
@@ -230,7 +275,7 @@ function ns.ReadVitals()
 	local source = "UnitHealth"
 	if not hp or not hpMax or hpMax <= 0 then
 		local why = hpWhy or maxWhy or "gave nothing"
-		local v, hi, barWhy = FromBar("PlayerFrameHealthBar")
+		local v, hi, barWhy = FromBar("health")
 		if v and hi then
 			hp, hpMax, source = v, hi, "the player frame's bar"
 			S.hpWhy = "UnitHealth " .. why .. ", reading the player frame instead"
@@ -248,7 +293,7 @@ function ns.ReadVitals()
 	local mpMax, mpMaxWhy = Read(UnitPowerMax, "player", mana)
 	if not mp or not mpMax or mpMax <= 0 then
 		local why = mpWhy or mpMaxWhy or "gave nothing"
-		local v, hi, barWhy = FromBar("PlayerFrameManaBar")
+		local v, hi, barWhy = FromBar("mana")
 		if v and hi then
 			mp, mpMax = v, hi
 			S.mpWhy = "UnitPower " .. why .. ", reading the player frame instead"

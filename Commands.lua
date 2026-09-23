@@ -16,15 +16,22 @@ local floor, max, min = math.floor, math.max, math.min
 -- Each row: a label, the global's name, and a call to try. The name is checked separately from the
 -- call, because a function that is missing and a function that refuses are different problems.
 local PROBES = {
-	{ "UnitHealth",            "UnitHealth",            function() return UnitHealth("player") end },
-	{ "UnitHealthMax",         "UnitHealthMax",         function() return UnitHealthMax("player") end },
+	-- First, whether the secret test itself can be trusted. If issecretvalue says a plain 1 is
+	-- secret then nothing below means anything, and the fault is here rather than in the client.
+	{ "issecretvalue(1)",      "issecretvalue",         function() return issecretvalue(1) end },
+	{ "issecretvalue('x')",    "issecretvalue",         function() return issecretvalue("x") end },
+	{ "UnitHealth(player)",    "UnitHealth",            function() return UnitHealth("player") end },
+	{ "UnitHealthMax(player)", "UnitHealthMax",         function() return UnitHealthMax("player") end },
+	{ "UnitHealth(target)",    "UnitHealth",            function() return UnitHealth("target") end },
+	{ "UnitHealth(pet)",       "UnitHealth",            function() return UnitHealth("pet") end },
 	{ "UnitPower (mana)",      "UnitPower",             function() return UnitPower("player", (Enum and Enum.PowerType and Enum.PowerType.Mana) or 0) end },
 	{ "UnitPowerMax (mana)",   "UnitPowerMax",          function() return UnitPowerMax("player", (Enum and Enum.PowerType and Enum.PowerType.Mana) or 0) end },
+	{ "UnitPercentHealth",     "UnitPercentHealthFromGUID", function() return UnitPercentHealthFromGUID(UnitGUID("player")) end },
 	{ "UnitGetIncomingHeals",  "UnitGetIncomingHeals",  function() return UnitGetIncomingHeals("player") end },
-	{ "PlayerFrameHealthBar",  "PlayerFrameHealthBar",  function() return PlayerFrameHealthBar:GetValue() end },
-	{ "PlayerFrameManaBar",    "PlayerFrameManaBar",    function() return PlayerFrameManaBar:GetValue() end },
-	{ "InCombatLockdown",      "InCombatLockdown",      function() return InCombatLockdown() and 1 or 0 end },
-	{ "IsSpellKnown(Life Tap)", "IsSpellKnown",         function() return IsSpellKnown(11689) and 1 or 0 end },
+	{ "UnitLevel(player)",     "UnitLevel",             function() return UnitLevel("player") end },
+	{ "InCombatLockdown",      "InCombatLockdown",      function() return InCombatLockdown() end },
+	{ "AurasSecret",           "C_Secrets",             function() return C_Secrets.ShouldAurasBeSecret() end },
+	{ "IsSpellKnown(Life Tap)", "IsSpellKnown",         function() return IsSpellKnown(11689) end },
 }
 
 local function Describe(fn)
@@ -45,6 +52,23 @@ function ns.Probe()
 	for _, row in ipairs(PROBES) do
 		local exists = _G[row[2]] ~= nil
 		Print(("  %-24s global %s, call %s"):format(row[1], YesNo(exists), exists and Describe(row[3]) or "not tried"))
+	end
+	-- The player frame has been rebuilt more than once and the old global names are worth nothing
+	-- here, so every candidate is walked and reported: something on this list may still be readable
+	-- even when the plain call is not.
+	Print("  bars the health might be read off instead:")
+	for which, paths in pairs(ns.BAR_PATHS or {}) do
+		for _, path in ipairs(paths) do
+			local bar = ns.Resolve(path)
+			Print(("    %-12s %-62s %s"):format(which, path,
+				bar and ("found, value " .. Describe(function() return bar:GetValue() end)) or "|cffff5050missing|r"))
+		end
+	end
+	if next(ns.slotCalls or {}) then
+		Print("  what the game let us hand to a slot:")
+		for method, result in pairs(ns.slotCalls) do
+			Print(("    %-22s %s"):format(method, result == "ok" and "|cff40ff40ok|r" or ("|cffff5050" .. tostring(result) .. "|r")))
+		end
 	end
 end
 

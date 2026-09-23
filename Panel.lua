@@ -212,17 +212,28 @@ end
 -- ------------------------------------------------------------------
 -- The regions handed to one slot. The game owns when they are shown and what they say; we own only
 -- what they look like and where they are.
+-- Every call here is guarded on its own. One pcall round the lot was worse than useless: the slot
+-- frame is the game's, resizing one is refused, and that single refusal threw away the icon, the
+-- bar and the text with it, so the game fell back to drawing its own presentation wherever it
+-- liked. The button is never resized now, and each handover stands or falls by itself. What the
+-- game accepted is counted, so the report can say which of them this client allows.
+ns.slotCalls = {}
+local function Hand(button, method, ...)
+	if not button[method] then ns.slotCalls[method] = "no such method" return false end
+	local ok, err = pcall(button[method], button, ...)
+	ns.slotCalls[method] = ok and "ok" or tostring(err):gsub("^.-%.lua:%d+:%s*", "")
+	return ok
+end
+
 local function InitSlot(row)
 	return function(button)
 		if not button then return end
 		pcall(function()
-			button:SetSize(CELL_W, CELL_H)
-
 			local icon = button:CreateTexture(nil, "ARTWORK")
 			icon:SetSize(CELL_H, CELL_H)
 			icon:SetPoint("LEFT")
 			icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-			pcall(button.SetIcon, button, icon)
+			Hand(button, "SetIcon", icon)
 
 			local bar = CreateFrame("StatusBar", nil, button)
 			bar:SetSize(CELL_W - CELL_H - 3, CELL_H - 2)
@@ -234,23 +245,23 @@ local function InitSlot(row)
 			-- Opaque: the cell underneath is still drawn, and a see-through fill lets its greyed
 			-- out name read through the time the game is writing.
 			bg:SetColorTexture(0, 0, 0, 1)
-			pcall(button.SetDurationBar, button, bar)
+			Hand(button, "SetDurationBar", bar)
 
 			local time = button:CreateFontString(nil, "OVERLAY")
 			time:SetFont(FONT, 10, "OUTLINE")
 			time:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
-			pcall(button.SetDurationText, button, time)
+			Hand(button, "SetDurationText", time)
 
 			local name = button:CreateFontString(nil, "OVERLAY")
 			name:SetFont(FONT, 10, "OUTLINE")
 			name:SetPoint("LEFT", bar, "LEFT", 4, 0)
-			if button.SetSpellName then pcall(button.SetSpellName, button, name)
-			elseif button.SetNameText then pcall(button.SetNameText, button, name) end
+			if button.SetSpellName then Hand(button, "SetSpellName", name)
+			else Hand(button, "SetNameText", name) end
 
 			local count = button:CreateFontString(nil, "OVERLAY")
 			count:SetFont(FONT, 9, "OUTLINE")
 			count:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -1, 1)
-			pcall(button.SetApplicationCount, button, count)
+			Hand(button, "SetApplicationCount", count)
 		end)
 	end
 end
@@ -264,7 +275,17 @@ local function Cell(parent, row, index)
 	icon:SetSize(CELL_H, CELL_H)
 	icon:SetPoint("LEFT")
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-	local _, tex = ns.SpellInfo(row.name)
+	-- By id, not by name. Asking for "Renew" by name gets a warlock nothing, because the client
+	-- answers that question out of your own spellbook; any resolved rank has the icon on it.
+	local tex
+	local ids = ns.Ranks(row.name)
+	if ids then
+		for id in pairs(ids) do
+			local _, t = ns.SpellInfo(id)
+			if t then tex = t break end
+		end
+	end
+	if not tex then local _, t = ns.SpellInfo(row.name) tex = t end
 	icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
 	icon:SetDesaturated(true)
 	icon:SetAlpha(0.35)

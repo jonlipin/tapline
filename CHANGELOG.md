@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.1
+
+- Health and mana come back from this client as **secret values**, not as numbers: the first in-game run said "UnitHealth secret". So the readout now hunts for a bar it can read instead. The player frame has been rebuilt since the old global names were right, and `PlayerFrameHealthBar` does not exist here, so a list of candidate paths is walked and `/tapline debug` reports which of them exist and what each one gave.
+- `/tapline debug` now starts by asking whether `issecretvalue` itself can be trusted, since if it calls a plain 1 secret then nothing else it says means anything. It also probes health on the target and the pet, the percentage call, and the level, to find out whether this is about the player specifically or about unit data as a whole.
+- Fixed: one pcall wrapped every handover to a game-drawn slot, so the first refusal threw away the icon, the bar and the text with it and the game fell back to drawing its own presentation wherever it liked. Each handover is guarded on its own now, the slot frame is never resized (which the game refuses outright, and was the call that was failing), and the report says which handovers this client accepts.
+- Fixed: the placeholder icons under the bars asked for the spell by name, which gets a warlock nothing, because the client answers that out of your own spellbook. They ask by rank id now.
+
 ## 1.0.0
 
 - First release. A readout of health, mana, what a Life Tap costs and how many taps your floor leaves room for, ending in one word: TAP, tap ok, WAIT or no need. `/tapline`, or `/lifetap`. Everything is saved per character.
