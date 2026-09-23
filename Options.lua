@@ -223,6 +223,12 @@ function Options:Content()
 	ly = self:Slider(c, left, ly, "Icon size", 0.5, 1.5, 0.05,
 		function() return P().iconScale or 1 end,
 		function(v) P().iconScale = v ns.Panel:Rebuild() end)
+	ly = self:Slider(c, left, ly, "Gap between icon and bar", 0, 40, 1,
+		function() return P().gapExtra or 0 end,
+		function(v) P().gapExtra = v ns.Panel:Rebuild() end)
+	ly = self:Slider(c, left, ly, "Gap between rows", 0, 30, 1,
+		function() return P().rowGap or 4 end,
+		function(v) P().rowGap = v ns.Panel:Rebuild() end)
 	ly = self:Slider(c, left, ly, "Bar opacity", 0.1, 1, 0.05,
 		function() return P().barAlpha or 1 end,
 		function(v) P().barAlpha = v ns.Panel:Restyle() end)
@@ -242,6 +248,8 @@ function Options:Content()
 	ry = self:Heading(c, right, ry, "What to show")
 	ry = self:Check(c, right, ry, "The heal bars", function() return P().bars ~= false end,
 		function(v) P().bars = v if v then ns.Panel:Rebuild() end ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "A button on the minimap", function() return P().minimap ~= false end,
+		function(v) P().minimap = v if ns.MinimapButton then ns.MinimapButton:Refresh() end end)
 	ry = self:Check(c, right, ry, "The Life Tap cost readout", function() return P().shown end,
 		function(v) P().shown = v ns.Panel:Refresh(GetTime()) end)
 	ry = self:Check(c, right, ry, "Only heals that are actually on you", function() return P().onlyActive end,

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.6.0
+
+- **A button on the minimap**, with a tickbox in the options to turn it off and `/tapline minimap` to do the same. Left click opens the options, right click puts the Life Tap readout away or brings it back, and it can be dragged round the edge of the map to wherever suits. Its own button rather than a library: this addon has no libraries and is not growing one for a round button. The ring art is asked for by file id before it is used, because textures that have existed for twenty years are not guaranteed to render on this build, and a plain dark disc stands in if it is not there.
+- **A gap slider for the room beside the icon**, and another for the room between rows. The icon one is added to the least that avoids an overlap rather than replacing it, so however far it is wound down the bar still starts after the icon's frame art has finished. `/tapline gap` and `/tapline rowgap` do the same from the command line.
+
+### Locked in
+
+The working build is tagged `known-good-1.5.0` in the repository and zipped at `Tapline-1.5.0.zip`, verified in game: bars drawing in and out of combat, 30 aura sounds registered with the game, 7 of 7 sound files accepted. Everything in this release is additive and in its own file or its own setting; nothing reaches into the row-building or slot code that took three attempts to get right.
+
 ## 1.5.0
 
 - **Fixed: a bigger icon ran into the bar.** The frame drawn around an icon reaches past the picture on every side, and by a share of the icon rather than a fixed number of pixels, so it reaches further the further you push the size. A gap of four pixels was fine at the default and was simply run over at half again. The gap now grows with the icon, the icon is inset so its frame stays inside the row instead of hanging off the left, and the bar takes exactly the room that is left. The row also grows tall enough to hold a bigger icon, so rows stop running into each other as well.

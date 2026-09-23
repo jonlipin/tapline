@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.5.0"
+ns.VERSION = "1.6.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -205,6 +205,10 @@ local DEFAULTS = {
 	borderAlpha = 1,
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
 	onlyActive = false, -- draw nothing for a heal that is not on you, rather than an empty row
+	gapExtra = 0,    -- room between icon and bar, ON TOP of the least that avoids an overlap
+	rowGap = 4,      -- room between one row and the next
+	minimap = true,
+	minimapAngle = 200,
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -939,6 +943,7 @@ local function Startup()
 	ns.ClearStaleSounds()
 	ns.Sample(GetTime())
 	if ns.Panel then ns.Panel:Init() end
+	if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 	ns.SyncSounds()
 	if C_Timer and C_Timer.After then
 		C_Timer.After(2, function()
@@ -952,6 +957,7 @@ local function Startup()
 		-- is always this session and never a mixture of this one and the last.
 		C_Timer.After(3, function()
 			if ns.Options and ns.Options.RegisterBlizzard then pcall(ns.Options.RegisterBlizzard, ns.Options) end
+			if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 		end)
 		C_Timer.After(4, function() ns.AutoReport() end)
 	end

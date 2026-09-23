@@ -334,14 +334,16 @@ function Panel:RowMetrics()
 	local iconSize = max(8, floor(h * (tonumber(p.iconScale) or 1) + 0.5))
 	local overhang = floor(iconSize * ICON_OVERHANG_X + 0.5)
 	local overhangY = floor(iconSize * ICON_OVERHANG_Y + 0.5)
-	local gap = overhang + 3
+	-- Whatever room is asked for is added to the least that avoids an overlap, never instead of
+	-- it, so the slider cannot put the bar back under the icon's frame however it is set.
+	local gap = overhang + 3 + max(0, floor(tonumber(p.gapExtra) or 0))
 	-- What the bar starts at: the icon, plus the frame art on both sides of it, plus the gap.
 	local barLeft = overhang + iconSize + gap
 	local barW = max(8, w - barLeft - overhang)
 	-- A row is as tall as the taller of the bar and the icon with its frame.
 	local rowH = max(h, iconSize + overhangY * 2)
 	return { w = w, h = h, iconSize = iconSize, overhang = overhang, overhangY = overhangY, gap = gap,
-		barLeft = barLeft, barW = barW, rowH = rowH, pitch = rowH + 4 }
+		barLeft = barLeft, barW = barW, rowH = rowH, pitch = rowH + max(0, floor(tonumber(p.rowGap) or 4)) }
 end
 
 function Panel:BarSize()

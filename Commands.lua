@@ -192,6 +192,8 @@ function ns.Usage()
 	Print("  /tapline - open the options page, in the game's own options window where it will")
 	Print("  /tapline show - show or hide the Life Tap cost readout (it has a close button too)")
 	Print("  /tapline only - show only the heals that are actually on you")
+	Print("  /tapline gap <0-40> | rowgap <0-30> - room beside the icon, and between rows")
+	Print("  /tapline minimap - show or hide the button on the minimap")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
 	Print("  /tapline width <120-480> | height <14-56> - the size of one heal bar")
@@ -226,6 +228,16 @@ local function Command(msg)
 		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif sub == "help" then
 		ns.Usage()
+	elseif sub == "minimap" then
+		p.minimap = not (p.minimap ~= false)
+		if ns.MinimapButton then ns.MinimapButton:Refresh() end
+		if ns.Options then ns.Options:Refresh() end
+		Print("Minimap button " .. (p.minimap and "shown." or "hidden."))
+	elseif (sub == "gap" or sub == "rowgap") and n then
+		if sub == "gap" then p.gapExtra = max(0, min(40, n)) else p.rowGap = max(0, min(30, n)) end
+		ns.Panel:Rebuild()
+		local m = ns.Panel:RowMetrics()
+		Print(("Icon to bar %d, row to row %d."):format(m.gap, m.pitch - m.rowH))
 	elseif sub == "only" then
 		p.onlyActive = not p.onlyActive
 		ns.Panel:Refresh(GetTime())
