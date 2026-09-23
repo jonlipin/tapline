@@ -193,6 +193,7 @@ function ns.Usage()
 	Print("  /tapline show - show or hide the Life Tap cost readout (it has a close button too)")
 	Print("  /tapline only - show only the heals that are actually on you")
 	Print("  /tapline gap <0-40> | rowgap <-20-30> - room beside the icon, and between rows")
+	Print("  /tapline single - one bar for any heal at all, whichever it turns out to be")
 	Print("  /tapline collapse - let what is on you pack to the front, with no gaps")
 	Print("  /tapline grow up | down - which way the rows run")
 	Print("  /tapline minimap - show or hide the button on the minimap")
@@ -240,6 +241,12 @@ local function Command(msg)
 		ns.Panel:Rebuild()
 		local m = ns.Panel:RowMetrics()
 		Print(("Icon to bar %d, row to row %d."):format(m.gap, m.pitch - m.rowH))
+	elseif sub == "single" or sub == "one" then
+		p.single = not p.single
+		ns.Panel:Rebuild()
+		if ns.Options then ns.Options:Refresh() end
+		Print(p.single and "One bar for the lot: whichever heal is on you shows on it, with its own icon and time."
+			or "A row for each heal again.")
 	elseif sub == "collapse" then
 		p.collapse = not p.collapse
 		ns.Panel:Rebuild()

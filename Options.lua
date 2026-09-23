@@ -252,6 +252,9 @@ function Options:Content()
 		function(v) P().minimap = v if ns.MinimapButton then ns.MinimapButton:Refresh() end end)
 	ry = self:Check(c, right, ry, "The Life Tap cost readout", function() return P().shown end,
 		function(v) P().shown = v ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "One bar for any heal, whichever it is",
+		function() return P().single end,
+		function(v) P().single = v ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Pack them together, no gaps for heals you do not have",
 		function() return P().collapse end,
 		function(v) P().collapse = v ns.Panel:Rebuild() end)

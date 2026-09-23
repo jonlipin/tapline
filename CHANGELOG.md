@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0
+
+- **New: one bar for any heal at all.** A tickbox in the options, or `/tapline single`. It draws a single row and gives that one slot every rank of every heal, so whichever of them is on you shows there, with its own icon, its own name and its own countdown, and nothing shows when none is. It does not matter which heal it is as long as there is one, and this says exactly that.
+
+This is the sturdiest of the three arrangements, because it asks nothing of the game beyond what is already proven: one slot, one list of spell ids, which is what has been working all along. Packing rows together has to assume the game fills its slots from the front; one row has nothing to assume.
+
+- **The preview lets heals run out now.** It used to sit there with every row permanently full, which is no use at all for judging a layout that changes shape. A previewed heal runs for its real length, falls off, waits, and comes back, and the rows are offset so they do not do it in step. Which way the rows grow, whether they pack together, and what "only heals that are actually on you" really looks like can all be watched instead of guessed at.
+- Turning on "only heals that are actually on you" no longer hides the preview: a previewed row now properly disappears between heals and comes back, which is the point of previewing it.
+
 ## 1.7.0
 
 - **Fixed: "only heals that are on you" left three empty squares behind.** Four things were being faded out, the icon, the bar and the two labels, but the frame art, the plate and the icon's shadow are put on by the skin and belong to the row rather than to those four, so they stayed. The row itself goes now, which takes everything drawn on it with it. The game's own row is not a child of ours, so it still shows.
