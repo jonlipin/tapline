@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+- The report now writes itself into `TaplineDB.log` a few seconds after every login, to the log alone and not to chat, and starts the log fresh each time. The old way needed `/tapline log` to be typed **before** the reload, and getting that order wrong left the previous session's report sitting on disk looking exactly like the current one. A plain `/reload` is now enough, and what is on disk is always this session rather than a mixture of two.
+- Each report is stamped with the addon version and the time it was written, so there is no guessing about which build produced it.
+- `/tapline log` still works and still prints to chat as well.
+
 ## 1.2.0
 
 - The log settled every open question at once. On this client your **current** health, mana and health percentage are all secret, and so is incoming-heal prediction, but the **maximums are not**: `UnitHealthMax` and `UnitPowerMax` hand over real numbers, as does `UnitLevel`. `issecretvalue` was also cleared of suspicion, since it answers false for a plain 1 and for a string.

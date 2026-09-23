@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.2.0"
+ns.VERSION = "1.2.1"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -64,10 +64,16 @@ function ns.LogLine(text)
 	while #db.log > LOG_CAP do table.remove(db.log, 1) end
 end
 
+-- While this is set, output goes to the log and not to the chat frame. The report is written once
+-- at every login that way, so a plain /reload always leaves a current one on disk: the old way
+-- needed /tapline log BEFORE the reload, and getting that order wrong silently left yesterday's
+-- report sitting there looking like today's.
+ns.quiet = false
+
 function ns.Print(msg)
 	if issecretvalue and issecretvalue(msg) then msg = "(secret value)" end
 	msg = tostring(msg)
-	DEFAULT_CHAT_FRAME:AddMessage("|cffcc66ffTapline:|r " .. msg)
+	if not ns.quiet then DEFAULT_CHAT_FRAME:AddMessage("|cffcc66ffTapline:|r " .. msg) end
 	ns.LogLine(msg)
 end
 local Print = ns.Print
@@ -844,7 +850,20 @@ local function Startup()
 			ns.SyncSounds()
 			if ns.Panel then ns.Panel:BuildBars() end
 		end)
+		-- And then write the report, to the log alone. Started fresh each time, so what is on disk
+		-- is always this session and never a mixture of this one and the last.
+		C_Timer.After(4, function() ns.AutoReport() end)
 	end
+end
+
+function ns.AutoReport()
+	if not ns.db or not ns.Debug then return end
+	ns.db.log = {}
+	ns.quiet = true
+	ns.LogLine("=== Tapline " .. ns.VERSION .. " automatic report, " .. (date and date("%Y-%m-%d %H:%M:%S") or "?") .. " ===")
+	pcall(ns.Debug)
+	ns.LogLine("=== end of report. /tapline debug prints this in chat as well. ===")
+	ns.quiet = false
 end
 ns.Startup = Startup
 
