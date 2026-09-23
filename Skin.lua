@@ -102,35 +102,77 @@ local function ViewerItems(viewer)
 	return out
 end
 
+local function IsTexture(o)
+	return o ~= nil and Get(o, "GetObjectType") == "Texture"
+end
+
+local function Field(o, key)
+	if type(o) ~= "table" then return nil end
+	local ok, v = pcall(function() return o[key] end)
+	return ok and v or nil
+end
+
+local function Regions(o)
+	if not o then return {} end
+	local ok, list = pcall(function() return { o:GetRegions() } end)
+	return ok and list or {}
+end
+
+local function Children(o)
+	if not o then return {} end
+	local ok, list = pcall(function() return { o:GetChildren() } end)
+	return ok and list or {}
+end
+
+-- The manager's icon, and the frame it sits on.
+--
+-- On the real item, .Icon is a FRAME holding the texture rather than the texture itself, and a
+-- check for "does this have GetTexture" walks straight past it. With no icon in hand there is
+-- nothing to measure the mask and the shadow against, and nothing to keep out of the bar art, so
+-- missing it quietly breaks three things at once.
+local function FindIcon(item)
+	for _, key in ipairs({ "Icon", "icon", "Texture" }) do
+		local v = Field(item, key)
+		if IsTexture(v) then return v, item end
+		if v then
+			local inner = Field(v, "Icon") or Field(v, "icon")
+			if IsTexture(inner) then return inner, v end
+			for _, r in ipairs(Regions(v)) do
+				if IsTexture(r) then return r, v end
+			end
+		end
+	end
+	-- Otherwise the squarest texture on the item or on any of its children: an icon is square and
+	-- everything else on one of these rows is not.
+	local holders = { item }
+	for _, kid in ipairs(Children(item)) do holders[#holders + 1] = kid end
+	for _, holder in ipairs(holders) do
+		for _, r in ipairs(Regions(holder)) do
+			if IsTexture(r) then
+				local rect = Rect(r)
+				if rect and rect.w > 4 and abs(rect.w - rect.h) < 2 then return r, holder end
+			end
+		end
+	end
+end
+
 -- The StatusBar inside an item frame, and the icon texture beside it.
 local function PartsOf(item)
-	local bar, icon
+	local bar
 	local ok = pcall(function()
 		for _, key in ipairs({ "Bar", "bar", "StatusBar", "statusBar", "BarFrame" }) do
-			local v = rawget(item, key)
+			local v = Field(item, key)
 			if v and v.GetStatusBarTexture then bar = v break end
 		end
 		if not bar then
-			for _, child in ipairs({ item:GetChildren() }) do
+			for _, child in ipairs(Children(item)) do
 				if child.GetStatusBarTexture and not bar then bar = child end
 			end
 		end
-		for _, key in ipairs({ "Icon", "icon", "Texture" }) do
-			local v = rawget(item, key)
-			if v and v.GetTexture then icon = v break end
-		end
-		if not icon then
-			for _, region in ipairs({ item:GetRegions() }) do
-				if not icon and region.GetTexture and Get(region, "GetObjectType") == "Texture" then
-					local r = Rect(region)
-					-- The icon is the square one at the left hand end.
-					if r and r.w > 4 and abs(r.w - r.h) < 2 then icon = region end
-				end
-			end
-		end
 	end)
-	if not ok then return nil, nil end
-	return bar, icon
+	if not ok then return nil, nil, nil end
+	local icon, iconFrame = FindIcon(item)
+	return bar, icon, iconFrame
 end
 
 -- One texture, described so it can be rebuilt on a frame of a different size.
@@ -188,13 +230,13 @@ function Skin:Reckon()
 	self.barTexture = PLAIN_BAR
 	self.pieces = {}
 
-	local item, bar, icon
+	local item, bar, icon, iconFrame
 	for _, name in ipairs(DONOR_VIEWERS) do
 		local viewer = _G[name]
 		if viewer then
 			for _, candidate in ipairs(ViewerItems(viewer)) do
-				local b, i = PartsOf(candidate)
-				if b and Rect(b) then item, bar, icon = candidate, b, i break end
+				local b, i, holder = PartsOf(candidate)
+				if b and Rect(b) then item, bar, icon, iconFrame = candidate, b, i, holder break end
 			end
 		end
 		if bar then self.source = "the Cooldown Manager (" .. name .. ")" break end
@@ -203,9 +245,9 @@ function Skin:Reckon()
 		for _, template in ipairs(DONOR_TEMPLATES) do
 			local ok, made = pcall(CreateFrame, "Frame", nil, UIParent, template)
 			if ok and made then
-				local b, i = PartsOf(made)
+				local b, i, holder = PartsOf(made)
 				if b and Rect(b) then
-					item, bar, icon = made, b, i
+					item, bar, icon, iconFrame = made, b, i, holder
 					self.source = "a Cooldown Manager template (" .. template .. ")"
 					break
 				end
@@ -311,9 +353,14 @@ function Skin:Reckon()
 			-- And everything else the item draws near the icon, kept with the layer it is drawn in.
 			-- Anything reaching more than half an icon away belongs to the bar, not to the picture.
 			self.iconUnder, self.iconOver = {}, {}
-			local okRegions, regions = pcall(function() return { item:GetRegions() } end)
-			if okRegions and regions then
-				for _, region in ipairs(regions) do
+			-- The art may hang on the item or on the frame the icon itself sits on.
+			local near = {}
+			for _, r in ipairs(Regions(item)) do near[#near + 1] = r end
+			if iconFrame and iconFrame ~= item then
+				for _, r in ipairs(Regions(iconFrame)) do near[#near + 1] = r end
+			end
+			if true then
+				for _, region in ipairs(near) do
 					if region ~= icon and Get(region, "GetObjectType") == "Texture" then
 						local rect = RelRect(region, icon)
 						local atlas, file = Get(region, "GetAtlas"), Get(region, "GetTexture")

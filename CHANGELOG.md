@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.11.1
+
+- **Fixed: the icon on the manager's own bar was never being found**, and that one miss was quietly breaking three things at once. The report said so plainly once it was asked the right questions: the mask and the shadow had both fallen back to asking for art by name rather than measuring it, and the icon's overlay was turning up in the list of **bar** art, flagged as a spark.
+
+The cause is small. On the real item, `.Icon` is a **frame** holding the texture, not the texture itself, and the check for it asked "does this have a texture on it", which a frame does not. So the search gave up. With no icon in hand there is nothing to measure the mask and shadow against, and nothing to recognise as belonging to the icon and keep out of the bar's art.
+
+It now looks where the icon actually is: the texture directly, the texture inside the frame of that name, that frame's first texture, and failing all of those, the squarest texture on the item or any of its children, since an icon is square and nothing else on one of these rows is.
+
+The art hanging on the icon's frame is read along with the item's own, which is where the manager keeps its overlay.
+
+### The harness
+
+Its donor hung the icon straight off the item, so it never exercised the case the real client presents. It can now be built either way, and six checks run against the nested one: that the icon is found at all, that its mask is measured rather than named, that the shadow art is measured, that the shadow reaches further across the icon than down as the manager's does, that the icon's art stays out of the bar's, and that the spark is therefore the bar's spark and not the icon's overlay.
+
 ## 1.11.0
 
 - **The icon mask and shadow, done the way Aura Ledger settled them.** That addon spent about twenty five releases arriving at this, so it is taken from there rather than worked out again.
