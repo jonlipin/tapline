@@ -177,7 +177,7 @@ end
 -- The art goes on afterwards and inside a pcall of its own. Making the plate look like the
 -- Cooldown Manager is worth doing, and it is worth exactly nothing if a refused call takes the bar
 -- down with it: the worst this can do now is leave a plain bar that works.
-local function Adorn(frame, m)
+local function Adorn(frame, m, already)
 	local parts = {}
 	local h = m.h
 
@@ -226,7 +226,7 @@ local function Adorn(frame, m)
 	-- Now the client's own art, if it will part with it, and never at the cost of the row.
 	local p = ns.Profile()
 	if p and p.plain then ns.report["bar art"] = "off, by /tapline plain" return parts end
-	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time, m.iconSize) end)
+	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time, m.iconSize, already) end)
 	if not ok then
 		ns.report["bar art"] = "refused: " .. tostring(applied):gsub("^.-%.lua:%d+:%s*", "")
 	elseif applied then
@@ -244,7 +244,8 @@ local function InitSlot(row)
 		local m = Panel:RowMetrics()
 		-- Building the regions is one guarded step, since they are made on the game's own frame and
 		-- a refusal there leaves nothing to hand over. Each handover is then guarded separately.
-		local ok, parts = pcall(Adorn, button, m)
+		-- The game draws one layer of its own shadow on a row it fills, so ours counts that one.
+		local ok, parts = pcall(Adorn, button, m, 1)
 		ns.slotCalls["build the row"] = ok and "ok" or tostring(parts):gsub("^.-%.lua:%d+:%s*", "")
 		if not ok or type(parts) ~= "table" then return end
 		button.tlParts = parts

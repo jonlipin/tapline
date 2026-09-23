@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.11.0
+
+- **The icon mask and shadow, done the way Aura Ledger settled them.** That addon spent about twenty five releases arriving at this, so it is taken from there rather than worked out again.
+
+The point of it is that the mask and the shadow are **measured** off the manager's own icon, not named and then given a size picked by eye. Every mask on that icon is read along with the rectangle it covers, as shares of the icon's size, and laid back on at whatever size your rows are. On this client the mask sits exactly on the picture; measuring rather than assuming is what makes a client that differs get followed instead of fought. An inset chosen by eye is how the shape came out wrong before.
+
+The shadow is not a border. On this client it is the icon overlay, drawn **over** the picture and reaching further across it than down, which is why it is placed by a measured rectangle rather than an even inset.
+
+- **Icon shadow depth** is a slider, 0 to 4, default 2. One layer is what the manager draws; two is how its icons actually read. A row the game fills already carries one of its own, so that one gets a layer fewer and the two kinds of row end up matching. `/tapline shadow <0-4>`.
+- Where nothing can be measured, the manager's own atlases are asked for by name and placed at the proportions Aura Ledger measured: 0.200 of the icon across, 0.175 down. `/tapline debug` says which of the three you got for each.
+- Fixed on the way: art sitting on the icon was being collected as *bar* art, laid across the bar as a plate, and in one case mistaken for a spark, since an icon overlay is narrow against a bar ten times its width. The bar walk leaves the icon's neighbourhood alone now.
+
+### The harness
+
+Its donor had a mask with no rectangle to measure and drew no overlay at all, so none of this could have been tested. It now carries both, at real coordinates, with the overlay at the manager's own uneven proportions. Five checks were added and four of them fail without this change.
+
 ## 1.10.4
 
 - **Fixed: the spark sat on the left edge of every empty bar.** It rides the end of the fill, and an empty bar has its fill squeezed to nothing at the left hand end, so on a row with no heal on it the spark parked itself against the left edge and read as a mark on the plate. A spark belongs to a bar that is actually running, and it now follows the fill rather than merely being anchored to it: the bar tells it whenever its value changes, so this holds for the rows the game fills as well as the ones drawn here.

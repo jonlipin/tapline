@@ -194,6 +194,7 @@ function ns.Usage()
 	Print("  /tapline edge - always draw a frame round the bar, even if the client gave us one")
 	Print("  /tapline spark - the mark at the end of the fill, on or off")
 	Print("  /tapline sparksize <0.5-4> - how big it is against the bar")
+	Print("  /tapline shadow <0-4> - how deep the shadow round an icon is")
 	Print("  /tapline rate <5-60> - how often the readout and the preview are redrawn")
 	Print("  /tapline barbg <0-1> - how dark the plate inside a bar is")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
@@ -236,6 +237,11 @@ local function Command(msg)
 		if ns.MinimapButton then ns.MinimapButton:Refresh() end
 		if ns.Options then ns.Options:Refresh() end
 		Print("Minimap button " .. (p.minimap and "shown." or "hidden."))
+	elseif sub == "shadow" and n then
+		p.shadowLayers = max(0, min(4, n))
+		ns.Panel:Rebuild()
+		if ns.Options then ns.Options:Refresh() end
+		Print(("Icon shadow %d deep. One is what the manager draws, two is how its icons read."):format(p.shadowLayers))
 	elseif sub == "sparksize" and n then
 		p.sparkScale = max(0.5, min(4, n))
 		ns.Panel:Rebuild()

@@ -57,6 +57,27 @@ local function Rect(o)
 	return { l = l, r = r, t = t, b = b, w = r - l, h = t - b }
 end
 
+-- How far one region reaches past another, as shares of that other's size. This is the whole
+-- trick: a piece measured this way can be laid back on an icon of any size and keep its shape.
+-- Naming an atlas and reckoning a size from it is what produced art of the wrong shape before.
+local function RelRect(region, ref)
+	local r, base = Rect(region), Rect(ref)
+	if not r or not base or base.w <= 0 or base.h <= 0 then return nil end
+	return {
+		l = (base.l - r.l) / base.w,
+		r = (r.r - base.r) / base.w,
+		t = (r.t - base.t) / base.h,
+		b = (base.b - r.b) / base.h,
+	}
+end
+
+-- What the manager draws round its own icon, when none of it can be measured: one mask exactly
+-- the size of the picture, and an overlay reaching past it further across than down. That overlay
+-- IS the shadow on this client; there is no border art on any of the viewers.
+local ICON_MASK_ATLAS = "UI-HUD-CoolDownManager-Mask"
+local ICON_OVERLAY_ATLAS = "UI-HUD-CoolDownManager-IconOverlay"
+local ICON_OVERLAY_RECT = { l = 0.200, r = 0.200, t = 0.175, b = 0.175 }
+
 local function Get(o, method, ...)
 	if not o or not o[method] then return nil end
 	local ok, v = pcall(o[method], o, ...)
@@ -230,10 +251,18 @@ function Skin:Reckon()
 					if region ~= icon and region ~= fillTex and not seen[region]
 						and Get(region, "GetObjectType") == "Texture" then
 						seen[region] = true
+						-- Art sitting on the icon belongs to the icon. It is collected separately below,
+						-- and left here it would be laid across the bar as a plate, or worse, mistaken
+						-- for a spark, since it is narrow against a bar ten times its width.
+						local near = icon and (function()
+							local rel = RelRect(region, icon)
+							return rel and max(abs(rel.l), abs(rel.r), abs(rel.t), abs(rel.b)) <= 0.6
+						end)()
+						if near then seen[region] = true end
 						local d = Describe(region, bar)
 						-- Decoration belongs to the bar if it is about the bar's size. Generous, since a
 						-- frame reaches past what it frames, but not so generous that a whole window sneaks in.
-						if d and (d.atlas or d.file) and d.wRatio <= 2 and d.hRatio <= 4 then
+						if not near and d and (d.atlas or d.file) and d.wRatio <= 2 and d.hRatio <= 4 then
 							self.pieces[#self.pieces + 1] = d
 							found[#found + 1] = (d.atlas or tostring(d.file)) .. (d.pip and " (spark)" or "")
 						end
@@ -263,10 +292,40 @@ function Skin:Reckon()
 			end
 		end
 		if icon then
-			local ok, masks = pcall(function() return icon:GetNumMaskTextures() end)
-			if ok and (Clean(masks) or 0) > 0 then
-				local okM, mask = pcall(function() return icon:GetMaskTexture(1) end)
-				if okM and mask then self.iconMask = Get(mask, "GetAtlas") end
+			-- Every mask on the manager's icon, with the rectangle each one covers measured against
+			-- that icon. On this client there is one and it sits exactly on the picture, but measuring
+			-- it costs nothing and means a client that differs is followed rather than fought.
+			self.iconMasks = {}
+			local okN, n = pcall(function() return icon:GetNumMaskTextures() end)
+			n = okN and Clean(n) or 0
+			for i = 1, n do
+				local okM, mask = pcall(function() return icon:GetMaskTexture(i) end)
+				if okM and mask then
+					local rect = RelRect(mask, icon)
+					local atlas, file = Get(mask, "GetAtlas"), Get(mask, "GetTexture")
+					if rect and (atlas or file) then
+						self.iconMasks[#self.iconMasks + 1] = { atlas = atlas, file = file, rect = rect }
+					end
+				end
+			end
+			-- And everything else the item draws near the icon, kept with the layer it is drawn in.
+			-- Anything reaching more than half an icon away belongs to the bar, not to the picture.
+			self.iconUnder, self.iconOver = {}, {}
+			local okRegions, regions = pcall(function() return { item:GetRegions() } end)
+			if okRegions and regions then
+				for _, region in ipairs(regions) do
+					if region ~= icon and Get(region, "GetObjectType") == "Texture" then
+						local rect = RelRect(region, icon)
+						local atlas, file = Get(region, "GetAtlas"), Get(region, "GetTexture")
+						local near = rect and max(abs(rect.l), abs(rect.r), abs(rect.t), abs(rect.b)) <= 0.6
+						local okShown, shown = pcall(function() return region:IsShown() end)
+						if near and (atlas or file) and not (okShown and Clean(shown) == false) then
+							local layer = Get(region, "GetDrawLayer") or "ARTWORK"
+							local into = (layer == "BACKGROUND" or layer == "BORDER") and self.iconUnder or self.iconOver
+							into[#into + 1] = { atlas = atlas, file = file, rect = rect, layer = layer }
+						end
+					end
+				end
 			end
 		end
 	end
@@ -278,14 +337,14 @@ end
 
 -- Dresses one StatusBar and, if given, its icon. Everything is guarded: a piece the client would
 -- not describe is simply left out rather than taking the bar down with it.
-function Skin:Dress(bar, height, icon, name, time, iconSize)
+function Skin:Dress(bar, height, icon, name, time, iconSize, already)
 	self:Build()
-	local okAll, whyNot = pcall(self.Apply, self, bar, height, icon, name, time, iconSize)
+	local okAll, whyNot = pcall(self.Apply, self, bar, height, icon, name, time, iconSize, already)
 	if not okAll then ns.report["bar art"] = "refused: " .. tostring(whyNot):gsub("^.-%.lua:%d+:%s*", "") end
 	return okAll
 end
 
-function Skin:Apply(bar, height, icon, name, time, iconSize)
+function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 	-- Measured against the icon, never against the bar: the art round a picture grows with the
 	-- picture, and sizing it off the bar is what let it reach across into the fill.
 	iconSize = iconSize or height
@@ -428,44 +487,8 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 	end
 	ns.report["bar frame"] = (hasFrame and not forced) and "copied from the client" or "made here"
 
-	if icon then
-		if self.iconMask and icon.AddMaskTexture and not icon.tlMask then
-			local okM, m = pcall(function() return bar:GetParent():CreateMaskTexture() end)
-			if okM and m and m.SetAtlas and pcall(m.SetAtlas, m, self.iconMask) then
-				-- A mask atlas here is bigger than the shape it carries, so it is drawn larger than
-				-- what it clips or it eats the edges of the picture.
-				m:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * 0.13, iconSize * 0.13)
-				m:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * 0.13, -iconSize * 0.13)
-				pcall(icon.AddMaskTexture, icon, m)
-				icon.tlMask = m
-			end
-		end
-		if not icon.tlOverlay then
-			local okO, o = pcall(function() return bar:GetParent():CreateTexture(nil, "OVERLAY") end)
-			if not okO then o = nil end
-			if o then
-			-- Measured off the manager: the overlay is not square, reaching further across than down.
-			local okAtlas = o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay")
-			ns.report["icon shadow"] = okAtlas and "the manager's own overlay" or "this client has no icon overlay atlas"
-			if okAtlas and o then
-				local w, h = 0.200, 0.175
-				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * w, iconSize * h)
-				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * w, -iconSize * h)
-				icon.tlOverlay = o
-			elseif o then
-				-- Nothing to copy, so a dark halo a little larger than the picture, which is what that
-				-- overlay amounts to: it is a shadow, not a border.
-				o:SetColorTexture(0, 0, 0, 0.55)
-				o:SetDrawLayer("BACKGROUND", -2)
-				o:ClearAllPoints()
-				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * 0.08, iconSize * 0.08)
-				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * 0.08, -iconSize * 0.08)
-				o:Show()
-				ns.report["icon shadow"] = "made here: this client has no overlay atlas"
-			end
-			end
-		end
-	end
+	if icon then self:ShapeIcon(icon, iconSize, already) end
+
 	-- The fonts the manager uses, once there is art to size them against.
 	if name and time then
 		local f1, s1, g1 = ns.SkinFont("nameFont", height)
@@ -473,6 +496,91 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		local f2, s2, g2 = ns.SkinFont("durFont", height)
 		pcall(time.SetFont, time, f2, s2, g2)
 	end
+end
+
+-- The mask and the shadow on one icon.
+--
+-- Measured art first, the manager's own atlases by name second, nothing third. The shadow here is
+-- not a border: on this client it is the icon overlay, drawn OVER the picture and reaching further
+-- across it than down, which is why it is placed by a rectangle rather than an inset.
+--
+-- "already" is how many layers of that overlay are on the icon before this addon draws any, which
+-- is one on a row the game fills, because the game draws its own.
+function Skin:ShapeIcon(icon, size, already)
+	local p = ns.Profile() or {}
+	if not icon.tlMasks and icon.AddMaskTexture then
+		icon.tlMasks = {}
+		local defs = self.iconMasks
+		local how = "measured off the manager"
+		if not defs or #defs == 0 then
+			defs = AtlasExists(ICON_MASK_ATLAS) and { { atlas = ICON_MASK_ATLAS, rect = { l = 0, r = 0, t = 0, b = 0 } } } or {}
+			how = #defs > 0 and "the manager's own mask, by name" or "none: this client has no mask art"
+		end
+		for _, def in ipairs(defs) do
+			local okM, m = pcall(function() return icon:GetParent():CreateMaskTexture() end)
+			if okM and m then
+				local set = def.atlas and pcall(m.SetAtlas, m, def.atlas) or (def.file and pcall(m.SetTexture, m, def.file))
+				if set then
+					m:ClearAllPoints()
+					m:SetPoint("TOPLEFT", icon, "TOPLEFT", -(def.rect.l or 0) * size, (def.rect.t or 0) * size)
+					m:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", (def.rect.r or 0) * size, -(def.rect.b or 0) * size)
+					if pcall(icon.AddMaskTexture, icon, m) then icon.tlMasks[#icon.tlMasks + 1] = m
+					else pcall(m.Hide, m) end
+				else
+					pcall(m.Hide, m)
+				end
+			end
+		end
+		ns.report["icon mask"] = ("%s (%d on)"):format(how, #icon.tlMasks)
+	end
+
+	-- How deep the shadow goes. One layer is what the manager draws; two is what its icons read as,
+	-- and a row the game fills already carries one of its own.
+	local want = tonumber(p.shadowLayers) or 2
+	if want < 0 then want = 0 elseif want > 4 then want = 4 end
+	local layers = max(0, want - (already or 0))
+
+	icon.tlShadow = icon.tlShadow or {}
+	for _, t in ipairs(icon.tlShadow) do t:Hide() end
+	local defs = {}
+	for _, def in ipairs(self.iconUnder or {}) do defs[#defs + 1] = def end
+	for _, def in ipairs(self.iconOver or {}) do defs[#defs + 1] = def end
+	local how = "measured off the manager"
+	if #defs == 0 then
+		if AtlasExists(ICON_OVERLAY_ATLAS) then
+			defs = { { atlas = ICON_OVERLAY_ATLAS, rect = ICON_OVERLAY_RECT, layer = "OVERLAY" } }
+			how = "the manager's own overlay, by name"
+		else
+			how = "none: this client has no icon overlay art"
+		end
+	end
+	local made = 0
+	for layer = 1, layers do
+		for _, def in ipairs(defs) do
+			made = made + 1
+			local t = icon.tlShadow[made]
+			if not t then
+				local under = def.layer == "BACKGROUND" or def.layer == "BORDER"
+				local okT, made2 = pcall(function()
+					return icon:GetParent():CreateTexture(nil, under and "BACKGROUND" or "OVERLAY", nil, under and -3 or 1)
+				end)
+				t = okT and made2 or nil
+				if t then icon.tlShadow[made] = t end
+			end
+			if t then
+				local set = def.atlas and pcall(t.SetAtlas, t, def.atlas) or (def.file and pcall(t.SetTexture, t, def.file))
+				if set then
+					t:ClearAllPoints()
+					t:SetPoint("TOPLEFT", icon, "TOPLEFT", -(def.rect.l or 0) * size, (def.rect.t or 0) * size)
+					t:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", (def.rect.r or 0) * size, -(def.rect.b or 0) * size)
+					t:Show()
+				else
+					t:Hide()
+				end
+			end
+		end
+	end
+	ns.report["icon shadow"] = ("%s, %d of %d layers drawn here"):format(how, layers, want)
 end
 
 -- The manager writes its times as "6 s" and "1 m". Matched, so a Tapline bar beside one does not
