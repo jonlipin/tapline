@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.10.1
+
+- **Removed: "Health to keep back", and the mana percentage that went with it.** Both fed one function, the verdict that decided whether a tap would put you under your floor, and that verdict has been called by nothing at all since the readout which displayed it was taken out. The sliders moved a number that no longer reached anything. The settings, the commands and the verdict itself are gone.
+
+### What is still in there from the old idea
+
+The tick estimate is the last of it: the thing that watched your health for the jumps a heal makes, back when that was the only way to guess whether one was on you. It shows up in two places now, the "incoming says" line in `/tapline debug` and the optional "estimate" sound.
+
+It is also no longer much good. Health is read once a second now rather than thirty times, because nothing on screen needs it, and a clock built on catching three-second ticks wants far closer attention than that.
+
+So it is worth deciding rather than leaving: it can have its sampling back and keep working, or it can follow the readout out of the door. Nothing else depends on it either way.
+
 ## 1.10.0
 
 - **The Life Tap cost readout is gone.** It was the idea the addon started from, and this client killed it: health and mana come back as secret values, so the window could only ever show what a tap costs, a number that never changes and that the spell tooltip already gives you. What is left is what actually works, which is the heal bars the game draws and the alert it plays. The setting, the command and the code are all out.

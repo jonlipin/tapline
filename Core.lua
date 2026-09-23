@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.10.0"
+ns.VERSION = "1.10.1"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -184,8 +184,6 @@ end
 local DEFAULTS = {
 	scale = 1,
 	alpha = 1,
-	reserve = 25,    -- per cent of maximum health to keep back after a tap
-	manaAt = 50,     -- only speak up once mana is at or below this per cent
 	tickPct = 2,     -- a gain smaller than this share of maximum health is not somebody's heal
 	rank = nil,      -- nil: the highest rank of Life Tap this character knows
 	cost = nil,      -- overrides what the client says a tap costs
@@ -691,58 +689,6 @@ function ns.ReckonIncoming(now)
 	end
 	if Blind() then return "none", "nothing seen, and auras are hidden here", nil end
 	return "none", "nothing on you", nil
-end
-
--- Returns a key, the reasoning, and how many taps your floor leaves room for.
---   tap     health to spare and something is healing you
---   ok      health to spare, nothing coming
---   wait    a tap would put you under your own floor
---   spare   mana is fine, so there is nothing to ask
---   unknown the client would not say
-function ns.Verdict()
-	local p = Profile()
-	if not p then return "unknown", "not loaded yet", 0 end
-	local hp, hpMax = S.hp, S.hpMax
-	if not S.readable or not hp or not hpMax or hpMax <= 0 then
-		return "unknown", S.hpWhy or "this client will not say what your health is", 0
-	end
-	local cost = ns.Cost()
-	local reserve = hpMax * (p.reserve or 25) / 100
-	-- Mana that cannot be read must not be taken for mana you have. Assuming a full bar would
-	-- mean answering "no need" for the whole of a fight on a client that keeps mana secret, which
-	-- is the one answer that is certainly wrong. Unknown mana simply drops the question.
-	local manaKnown = S.mp and S.mpMax and S.mpMax > 0
-	local manaPct = manaKnown and (S.mp / S.mpMax * 100) or nil
-	-- With only a percentage to go on there is no arithmetic to do on the cost: what a tap takes is
-	-- a number of health and how much health you have is secret. The floor still works, because a
-	-- floor is a percentage already, so the answer becomes "above your floor or not".
-	if S.percentOnly then
-		if hp <= reserve then
-			return "wait", ("below your floor of %d%%"):format(p.reserve or 25), nil
-		end
-		if manaKnown and manaPct > (p.manaAt or 50) then
-			return "spare", ("mana is above %d%%"):format(p.manaAt or 50), nil
-		end
-		local kind, label = ns.Incoming()
-		if kind == "read" or kind == "estimated" or kind == "cast" then return "tap", label, nil end
-		return "ok", "above your floor, nothing healing you", nil
-	end
-	if not cost or cost <= 0 then
-		return "unknown", "no Life Tap rank found: /tapline cost <health>", 0
-	end
-	local room = floor((hp - reserve) / cost)
-	if room < 0 then room = 0 end
-	-- Mana first, so the red reading means something: there is no decision to make while the mana
-	-- is there, whatever the health is doing.
-	if manaKnown and manaPct > (p.manaAt or 50) then
-		return "spare", ("mana is above %d%%"):format(p.manaAt or 50), room
-	end
-	if room < 1 then
-		return "wait", ("a tap costs %d and your floor is %d%%"):format(cost, p.reserve or 25), 0
-	end
-	local kind, label = ns.Incoming()
-	if kind == "read" or kind == "estimated" or kind == "cast" then return "tap", label, room end
-	return "ok", "nothing is healing you", room
 end
 
 function ns.FormatTime(sec)

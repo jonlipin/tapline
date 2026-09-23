@@ -264,9 +264,6 @@ function Options:Content()
 		function(v) P().edge = v and "always" or "auto" ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Plain bars: skip the copied Cooldown Manager art", function() return P().plain end,
 		function(v) P().plain = v ns.Panel:Rebuild() end)
-	ry = self:Slider(c, right, ry - 6, "Health to keep back", 0, 90, 5,
-		function() return P().reserve or 25 end,
-		function(v) P().reserve = v end, "%")
 
 	ry = self:Heading(c, right, ry - 8, "Alerts")
 	ry = self:Note(c, right, ry, "These are played by the game itself, so they work in combat, where this addon cannot see an aura at all.")
