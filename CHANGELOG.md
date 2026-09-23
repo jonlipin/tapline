@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.8.2
+
+- **Fixed: the bars lost their frame, and never had a spark.** 1.8.1 taught the skin to find the art the client keeps on the bar, and then the hand-made frame stopped being drawn, because the test for whether to draw it was "did we copy anything at all". One stray texture was enough to switch it off, and if that texture was not a frame the bar simply lost its edge. Each part of the look is asked for separately now:
+
+  - a **frame** is a piece that reaches past what it frames, so a backing sitting inside the bar no longer counts as one
+  - a **spark** is a piece narrow against the bar's length
+  - the **icon's shadow** is the manager's overlay atlas
+
+  Whichever of those the client does not give up is made here instead, and the report says which came from where. A bar can no longer come out worse than the plain one.
+
+- **Always draw a frame round the bar** is a tickbox, and `/tapline edge`, for when the copied art is there but not to taste.
+
+- **Packing the rows now asks the game to do it.** 1.7.0 handed every row every heal and assumed the game would fill them from the front. It does not: it keeps each heal in its own row and leaves the hole where the others would be, which is exactly what you saw. This addon cannot close that gap itself, because which rows are filled is aura data and secret here, which is the whole reason the game draws them.
+
+  So packing now asks for the mechanism the game has for a list that changes length: an aura group rather than fixed slots, given the same spell ids and a layout to pack them into. The fixed slots stay as the fallback if the game refuses, and `/tapline debug` says which one is running.
+
+  If the group turns out to ignore the spell list and show every buff you have, turn it off and tell me. **One bar for any heal** needs nothing from the game at all and is still the arrangement to trust.
+
 ## 1.8.1
 
 - **Fixed: no spark, and no shadow on the icons.** Both came from the same place. The skin was reporting "0 pieces", meaning it had copied the manager's fill colour and nothing else, and there were two reasons for that stacked on top of each other.

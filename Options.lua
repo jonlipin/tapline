@@ -265,6 +265,9 @@ function Options:Content()
 		function(v) P().onlyActive = v ns.Panel:Refresh(GetTime()) end)
 	ry = self:Check(c, right, ry, "Preview: run the bars on a made-up timer", function() return P().test end,
 		function(v) P().test = v ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "Always draw a frame round the bar",
+		function() return P().edge == "always" end,
+		function(v) P().edge = v and "always" or "auto" ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Plain bars: skip the copied Cooldown Manager art", function() return P().plain end,
 		function(v) P().plain = v ns.Panel:Rebuild() end)
 	ry = self:Slider(c, right, ry - 6, "Health to keep back", 0, 90, 5,

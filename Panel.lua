@@ -664,6 +664,40 @@ function Panel:BuildBars()
 	if p.collapse or p.single then
 		everything = self:AllHealIds()
 	end
+	-- Packing the rows together cannot be done by this addon. Which rows are filled is aura data,
+	-- secret here, which is the whole reason the game draws them. Handing every row every heal and
+	-- hoping the game fills them front first was a guess, and a wrong one: it keeps each heal in
+	-- its own row and leaves the hole where the others would be.
+	--
+	-- The game does have a mechanism for a list that changes length, though: a group rather than
+	-- fixed slots, which lays out however many auras match and packs them itself. That is asked for
+	-- first, and the fixed slots stay as the fallback when it is refused.
+	self.grouped = nil
+	if p.collapse and everything and c.AddAuraGroup then
+		local okG, err = pcall(c.AddAuraGroup, c, "heals", "HELPFUL", {
+			maxFrameCount = #rows,
+			initializeFrame = InitSlot(rows[1]),
+			candidateFilters = { includeSpellIDs = everything },
+			layout = {
+				elementWidth = m.w, elementHeight = m.rowH,
+				elementSpacing = max(0, m.pitch - m.rowH), lineSpacing = 0,
+			},
+		})
+		if okG then
+			-- The group places its own frames, so our rows underneath would only sit in the wrong
+			-- places behind them.
+			for _, cell in ipairs(self.cells or {}) do cell:SetAlpha(0) end
+			self.grouped = true
+			self.barKey = key
+			ns.report["packing"] = "the game's own aura group"
+			ns.report["game-drawn bars"] = ("an aura group of up to %d, %dx%d"):format(#rows, w, h)
+			return
+		end
+		ns.report["packing"] = "the game refused an aura group (" .. tostring(err) .. "), so one row per heal"
+	elseif p.collapse then
+		ns.report["packing"] = "this client has no aura group, so one row per heal"
+	end
+
 	local made = 0
 	for i, row in ipairs(rows) do
 		local ids = everything or ns.Ranks(row.name)
@@ -698,6 +732,7 @@ function Panel:RefreshBars(now)
 	local p = ns.Profile()
 	if not p or not self.bars then return end
 	self.bars:SetShown(p.bars ~= false)
+	if self.grouped then return end
 	local testing = p.test and true or false
 	for _, cell in ipairs(self.cells or {}) do self:DressCell(cell, testing, now) end
 end

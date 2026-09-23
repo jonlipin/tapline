@@ -18,6 +18,7 @@ local Clean = ns.Clean
 local floor, max, min, abs = math.floor, math.max, math.min, math.abs
 
 local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
+local BORDER_FILE = "Interface\\Tooltips\\UI-Tooltip-Border"
 local PLAIN_BAR = "Interface\\TargetingFrame\\UI-StatusBar"
 
 -- Where a Cooldown Manager bar might be found, best first. The viewers hold a pool of item frames;
@@ -307,21 +308,54 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		end
 		t:Show()
 	end
-	if #self.pieces == 0 then
-		-- Nothing to copy, so a frame of our own in the same spirit: a thin warm line round a dark
-		-- plate, which is what the manager's bars read as from a distance.
+	-- What the client actually handed over, piece by piece. The old test was whether ANY art had
+	-- been copied, which is far too coarse: the moment one stray texture was found the hand-made
+	-- frame stopped being drawn, and if that texture was not a frame the bar simply lost its edge.
+	-- Each part of the look is asked for separately now, and made by hand only where it is missing.
+	local hasFrame, hasPip = false, false
+	for _, d in ipairs(self.pieces) do
+		if d.pip then hasPip = true
+		-- A frame is a piece that reaches PAST what it frames. Anything sitting inside the bar is a
+		-- backing, and a backing is not an edge.
+		elseif (d.l or 0) > 0.01 or (d.rr or 0) > 0.01 or (d.t or 0) > 0.01 or (d.b or 0) > 0.01 then
+			hasFrame = true
+		end
+	end
+	local forced = (ns.Profile() or {}).edge == "always"
+
+	if not hasFrame or forced then
 		if not bar.tlEdge then
 			local okE, edge = pcall(CreateFrame, "Frame", nil, bar, "BackdropTemplate")
-			if not okE then edge = nil end
-			if edge.SetBackdrop then
+			if okE and edge and edge.SetBackdrop then
 				edge:SetPoint("TOPLEFT", -2, 2)
 				edge:SetPoint("BOTTOMRIGHT", 2, -2)
-				edge:SetBackdrop({ edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 10 })
+				edge:SetBackdrop({ edgeFile = BORDER_FILE, edgeSize = 10 })
 				edge:SetBackdropBorderColor(0.72, 0.60, 0.36, 1)
 				bar.tlEdge = edge
 			end
 		end
+		if bar.tlEdge then bar.tlEdge:Show() end
+	elseif bar.tlEdge then
+		bar.tlEdge:Hide()
 	end
+
+	if not hasPip and not bar.tlPip then
+		-- No spark to copy, so one of our own: a bright sliver riding the end of the fill, which is
+		-- what makes a bar read as moving rather than merely long.
+		local pip = bar:CreateTexture(nil, "OVERLAY", nil, 2)
+		pip:SetColorTexture(1, 0.93, 0.75, 0.85)
+		pcall(pip.SetBlendMode, pip, "ADD")
+		bar.tlPip, bar.tlOwnPip = pip, true
+	end
+	if bar.tlOwnPip and bar.tlPip then
+		local fill = bar:GetStatusBarTexture()
+		bar.tlPip:SetSize(max(2, height * 0.12), max(4, height))
+		bar.tlPip:ClearAllPoints()
+		bar.tlPip:SetPoint("CENTER", fill or bar, "RIGHT", 0, 0)
+		bar.tlPip:Show()
+	end
+	ns.report["bar frame"] = (hasFrame and not forced) and "copied from the client" or "made here"
+	ns.report["bar spark"] = hasPip and "copied from the client" or "made here"
 
 	if icon then
 		if self.iconMask and icon.AddMaskTexture and not icon.tlMask then
@@ -342,13 +376,21 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 			-- Measured off the manager: the overlay is not square, reaching further across than down.
 			local okAtlas = o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay")
 			ns.report["icon shadow"] = okAtlas and "the manager's own overlay" or "this client has no icon overlay atlas"
-			if okAtlas then
+			if okAtlas and o then
 				local w, h = 0.200, 0.175
 				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * w, iconSize * h)
 				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * w, -iconSize * h)
 				icon.tlOverlay = o
-			else
-				o:Hide()
+			elseif o then
+				-- Nothing to copy, so a dark halo a little larger than the picture, which is what that
+				-- overlay amounts to: it is a shadow, not a border.
+				o:SetColorTexture(0, 0, 0, 0.55)
+				o:SetDrawLayer("BACKGROUND", -2)
+				o:ClearAllPoints()
+				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * 0.08, iconSize * 0.08)
+				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * 0.08, -iconSize * 0.08)
+				o:Show()
+				ns.report["icon shadow"] = "made here: this client has no overlay atlas"
 			end
 			end
 		end

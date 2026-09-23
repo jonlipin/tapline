@@ -199,6 +199,7 @@ function ns.Usage()
 	Print("  /tapline minimap - show or hide the button on the minimap")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
+	Print("  /tapline edge - always draw a frame round the bar, even if the client offered one")
 	Print("  /tapline width <120-480> | height <14-56> - the size of one heal bar")
 	Print("  /tapline sound try - play every sound the game can make in a fight, in order")
 	Print("  /tapline bars - show or hide the heal bars the game draws")
@@ -251,8 +252,12 @@ local function Command(msg)
 		p.collapse = not p.collapse
 		ns.Panel:Rebuild()
 		if ns.Options then ns.Options:Refresh() end
-		Print(p.collapse and "Packed: every row takes any heal, so what is on you sits at the front. Pair it with /tapline only."
-			or "One row per heal, each in its own place.")
+		if p.collapse then
+			Print("Packed: " .. tostring(ns.report["packing"] or "asked the game to lay them out"))
+			Print("This one leans on the game to pack them, which it may or may not do. If it looks wrong, /tapline collapse turns it off, and /tapline single is the arrangement that needs nothing from the game.")
+		else
+			Print("One row per heal, each in its own place.")
+		end
 	elseif sub == "grow" then
 		p.growth = (tail == "up") and "up" or "down"
 		ns.Panel:Rebuild()
@@ -264,6 +269,12 @@ local function Command(msg)
 		if ns.Options then ns.Options:Refresh() end
 		Print(p.onlyActive and "Showing only the heals actually on you: an empty row draws nothing."
 			or "Showing a row for every heal, empty or not.")
+	elseif sub == "edge" then
+		p.edge = (p.edge == "always") and "auto" or "always"
+		ns.Panel:Rebuild()
+		if ns.Options then ns.Options:Refresh() end
+		Print(p.edge == "always" and "Always drawing a frame round the bar."
+			or "Drawing a frame only when the client did not give us one.")
 	elseif sub == "plain" then
 		p.plain = not p.plain
 		ns.Panel:Rebuild()
