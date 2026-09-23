@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.10.0
+
+- **The Life Tap cost readout is gone.** It was the idea the addon started from, and this client killed it: health and mana come back as secret values, so the window could only ever show what a tap costs, a number that never changes and that the spell tooltip already gives you. What is left is what actually works, which is the heal bars the game draws and the alert it plays. The setting, the command and the code are all out.
+
+  Health is still read once a second, purely so `/tapline debug` can keep saying what this client will and will not part with. It used to be read thirty times a second to be refused thirty times.
+
+- **The minimap button is back.** A tickbox, or `/tapline minimap`. Left click opens the options, right click shows or hides the heal bars, and it drags round the edge of the map.
+- **Both gap sliders are back, and both go smaller than before.** The gap beside the icon starts clear of the frame art round the icon, and can be wound all the way down to nothing, so the bar begins where the picture ends. The gap between rows genuinely reaches zero now: every row used to be padded by the reach of that art whether it needed the room or not, and the padding sat behind the setting where no winding could reach it. It goes down to -20 as well.
+- **The spark and the icon shadow are back**, along with the frame. Each part of the look is asked for separately and made here only where the client will not give it up, so a bar can never come out worse than a plain one. The skin looks on the status bar as well as the item frame, which is where the manager actually keeps its frame, backing and spark, and measures decoration against the bar's own width rather than multiples of its height, which was throwing full-length art away.
+- **Bar background opacity** is its own slider, separate from the box behind the rows, and changing it does not rebuild the game's slots.
+- **Redraws a second** is a slider, 5 to 60. It governs the parts this addon draws, which now means the preview. The heal bars themselves are filled by the game and animate at its pace, not ours, so winding this up will not make those smoother.
+- **Always draw a frame round the bar** is a tickbox, for when the copied art is there but not to taste.
+
+Still out, one command away each: growing the rows upwards, packing them together, one bar for any heal at all, and the preview letting heals fall off.
+
 ## 1.9.0
 
 This is the 1.5.0 build put back, with the "only heals that are actually on you" option taken out. Everything released between the two is gone. The history is all still in the repository, so any of it can be brought back on its own.

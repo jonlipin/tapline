@@ -86,7 +86,6 @@ function ns.Probe()
 			okA and tostring(alpha) or "?", okC and tostring(scale) or "?"))
 	end
 	Print("  where the frames actually are:")
-	Where("readout", ns.Panel and ns.Panel.frame)
 	Where("bars holder", ns.Panel and ns.Panel.bars)
 	Where("container", ns.Panel and ns.Panel.container)
 	for i, cell in ipairs((ns.Panel and ns.Panel.cells) or {}) do
@@ -118,8 +117,8 @@ function ns.Debug()
 
 	-- The decisive number. A panel that never updates and a client that refuses to answer look
 	-- exactly alike from the outside, and this tells them apart at a glance.
-	Print(("  driver: %d frames, %d samples taken; panel %s, bars %s"):format(
-		S.stats.driver, S.stats.samples, YesNo(ns.Panel and ns.Panel.frame), YesNo(ns.Panel and ns.Panel.container)))
+	Print(("  driver: %d frames, %d health reads; bars %s, container %s"):format(
+		S.stats.driver, S.stats.samples, YesNo(ns.Panel and ns.Panel.bars), YesNo(ns.Panel and ns.Panel.container)))
 	if S.stats.driver == 0 then Print("  |cffff5050the tick is not running at all, which is the first thing to fix|r") end
 
 	ns.Probe()
@@ -167,8 +166,8 @@ function ns.Debug()
 			st2 and st2.kept or "?", st2 and st2.dropped or "?", st2 and st2.pending or "?", st2 and st2.tries or "?"))
 	end
 	local ss = ns.soundStats
-	Print(("  sounds: applied %d, lapsed %d, estimate %d, ready %d; %d handed to the game, %d refused%s"):format(
-		p.sndApplied or 0, p.sndLapsed or 0, p.sndEstimate or 0, p.sndReady or 0,
+	Print(("  sounds: applied %d, lapsed %d, estimate %d; %d handed to the game, %d refused%s"):format(
+		p.sndApplied or 0, p.sndLapsed or 0, p.sndEstimate or 0,
 		ss.registered, ss.failed, ss.lastError and (" (" .. tostring(ss.lastError) .. ")") or ""))
 	local keys = {}
 	for k in pairs(ns.report) do keys[#keys + 1] = k end
@@ -190,7 +189,11 @@ function ns.Usage()
 	local p = ns.Profile() or {}
 	Print("v" .. ns.VERSION .. ", commands:")
 	Print("  /tapline - open the options page, in the game's own options window where it will")
-	Print("  /tapline show - show or hide the Life Tap cost readout (it has a close button too)")
+	Print("  /tapline minimap - show or hide the button on the minimap")
+	Print("  /tapline gap <-40-40> | rowgap <-20-30> - room beside the icon, and between rows")
+	Print("  /tapline edge - always draw a frame round the bar, even if the client gave us one")
+	Print("  /tapline rate <5-60> - how often the readout and the preview are redrawn")
+	Print("  /tapline barbg <0-1> - how dark the plate inside a bar is")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
 	Print("  /tapline width <120-480> | height <14-56> - the size of one heal bar")
@@ -218,13 +221,35 @@ local function Command(msg)
 	if sub == "" or sub == "options" or sub == "config" then
 		if ns.Options then
 			Print(ns.Options:Toggle() and "Options open." or "Options closed.")
-			return
+		else
+			Print("The options page could not be built. /tapline debug says what the client refused.")
 		end
-		p.shown = not p.shown
-		ns.Panel:Refresh(GetTime())
-		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif sub == "help" then
 		ns.Usage()
+	elseif (sub == "gap" or sub == "rowgap") and n then
+		if sub == "gap" then p.gapExtra = max(-40, min(40, n)) else p.rowGap = max(-20, min(30, n)) end
+		ns.Panel:Rebuild()
+		local m = ns.Panel:RowMetrics()
+		Print(("Icon to bar %d, row to row %d."):format(m.gap, m.pitch - m.rowH))
+	elseif sub == "minimap" then
+		p.minimap = not (p.minimap ~= false)
+		if ns.MinimapButton then ns.MinimapButton:Refresh() end
+		if ns.Options then ns.Options:Refresh() end
+		Print("Minimap button " .. (p.minimap and "shown." or "hidden."))
+	elseif sub == "edge" then
+		p.edge = (p.edge == "always") and "auto" or "always"
+		ns.Panel:Rebuild()
+		if ns.Options then ns.Options:Refresh() end
+		Print(p.edge == "always" and "Always drawing a frame round the bar."
+			or "Drawing a frame only where the client did not give us one.")
+	elseif sub == "barbg" and n then
+		p.barBgAlpha = max(0, min(1, n))
+		ns.Panel:Restyle()
+		if ns.Options then ns.Options:Refresh() end
+		Print(("Bar background at %.2f."):format(p.barBgAlpha))
+	elseif sub == "rate" and n then
+		p.rate = max(5, min(60, n))
+		Print(("Redrawing %d times a second. The heal bars themselves are filled by the game and animate at its pace, not this one."):format(p.rate))
 	elseif sub == "plain" then
 		p.plain = not p.plain
 		ns.Panel:Rebuild()
@@ -235,10 +260,6 @@ local function Command(msg)
 		ns.Panel:Refresh(GetTime())
 		if ns.Options then ns.Options:Refresh() end
 		Print(p.test and "Preview on: the bars run on a made-up timer so the layout can be judged." or "Preview off.")
-	elseif sub == "show" then
-		p.shown = not p.shown
-		ns.Panel:Refresh(GetTime())
-		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif (sub == "width" or sub == "height") and n then
 		if sub == "width" then p.barW = max(120, min(480, n)) else p.barH = max(14, min(56, n)) end
 		ns.Panel:Rebuild()
@@ -284,12 +305,12 @@ local function Command(msg)
 		which = string.lower(which or "")
 		local v = tonumber(value)
 		if which == "try" then ns.SoundTry() return end
-		local keys = { applied = "sndApplied", lapsed = "sndLapsed", estimate = "sndEstimate", ready = "sndReady" }
+		local keys = { applied = "sndApplied", lapsed = "sndLapsed", estimate = "sndEstimate" }
 		if which == "" or not keys[which] or not v then
 			SoundList()
-			Print(("  now: applied %d, lapsed %d, estimate %d, ready %d"):format(
-				p.sndApplied or 0, p.sndLapsed or 0, p.sndEstimate or 0, p.sndReady or 0))
-			Print("  /tapline sound applied|lapsed|estimate|ready <number>")
+			Print(("  now: applied %d, lapsed %d, estimate %d"):format(
+				p.sndApplied or 0, p.sndLapsed or 0, p.sndEstimate or 0))
+			Print("  /tapline sound applied|lapsed|estimate <number>")
 			Print("  applied and lapsed are handed to the game, so they play in combat. estimate and ready are this addon's own.")
 			return
 		end

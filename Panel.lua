@@ -28,20 +28,6 @@ local BAR_TEXTURE = "Interface\\TargetingFrame\\UI-StatusBar"
 local W, BAR_W, BAR_H = 216, 200, 13
 local CELL_W, CELL_H = 200, 18
 
-local VERDICTS = {
-	tap     = { "TAP",     0.25, 1.00, 0.30 },
-	ok      = { "tap ok",  0.80, 0.85, 0.40 },
-	wait    = { "WAIT",    1.00, 0.30, 0.25 },
-	spare   = { "no need", 0.60, 0.60, 0.60 },
-	unknown = { "?",       0.60, 0.60, 0.60 },
-}
-local INCOMING_COLORS = {
-	read      = { 0.40, 1.00, 0.50 },
-	estimated = { 0.55, 0.90, 1.00 },
-	cast      = { 0.80, 0.80, 1.00 },
-	none      = { 0.60, 0.58, 0.50 },
-}
-
 local function Backdrop(f)
 	if not f.SetBackdrop then return false end
 	f:SetBackdrop(BACKDROP)
@@ -57,23 +43,6 @@ local function Plate(name, parent)
 	return f
 end
 
-local function Bar(parent, r, g, b)
-	local bar = CreateFrame("StatusBar", nil, parent)
-	bar:SetSize(BAR_W, BAR_H)
-	bar:SetStatusBarTexture(BAR_TEXTURE)
-	bar:SetStatusBarColor(r, g, b)
-	bar:SetMinMaxValues(0, 1)
-	bar:SetValue(0)
-	local bg = bar:CreateTexture(nil, "BACKGROUND")
-	bg:SetAllPoints(bar)
-	bg:SetColorTexture(0, 0, 0, 0.7)
-	local text = bar:CreateFontString(nil, "OVERLAY")
-	text:SetFont(FONT, 10, "OUTLINE")
-	text:SetPoint("CENTER")
-	bar.text = text
-	return bar
-end
-
 -- Dragging: both displays move the same way, and both remember where they were put.
 local function MakeMovable(f, saveX, saveY)
 	f:SetMovable(true)
@@ -87,94 +56,12 @@ local function MakeMovable(f, saveX, saveY)
 	end)
 end
 
--- ------------------------------------------------------------------
--- The readout
--- ------------------------------------------------------------------
-function Panel:Build()
-	if self.frame then return self.frame end
-	local f = Plate("TaplineFrame")
-	f:SetSize(W, 118)
-	f:SetFrameStrata("MEDIUM")
-	f:SetClampedToScreen(true)
-	MakeMovable(f, "x", "y")
-
-	local title = f:CreateFontString(nil, "OVERLAY")
-	title:SetFont(FONT, 11, "OUTLINE")
-	title:SetPoint("TOPLEFT", 8, -7)
-	title:SetText("|cffffd000Life Tap|r")
-
-	f.health = Bar(f, 0.75, 0.15, 0.15)
-	f.health:SetPoint("TOPLEFT", 8, -22)
-	f.mana = Bar(f, 0.20, 0.35, 0.85)
-	f.mana:SetPoint("TOPLEFT", f.health, "BOTTOMLEFT", 0, -3)
-
-	f.verdict = f:CreateFontString(nil, "OVERLAY")
-	f.verdict:SetFont(FONT, 18, "OUTLINE")
-	f.verdict:SetPoint("TOPLEFT", f.mana, "BOTTOMLEFT", 0, -5)
-
-	f.room = f:CreateFontString(nil, "OVERLAY")
-	f.room:SetFont(FONT, 11, "OUTLINE")
-	f.room:SetPoint("BOTTOMRIGHT", f.mana, "BOTTOMRIGHT", 0, -24)
-	f.room:SetTextColor(0.85, 0.8, 0.65)
-
-	f.reason = f:CreateFontString(nil, "OVERLAY")
-	f.reason:SetFont(FONT, 10, "")
-	f.reason:SetPoint("TOPLEFT", f.verdict, "BOTTOMLEFT", 0, -2)
-	f.reason:SetWidth(BAR_W)
-	f.reason:SetJustifyH("LEFT")
-	f.reason:SetTextColor(0.75, 0.72, 0.62)
-
-	f.incoming = f:CreateFontString(nil, "OVERLAY")
-	f.incoming:SetFont(FONT, 10, "")
-	f.incoming:SetPoint("TOPLEFT", f.reason, "BOTTOMLEFT", 0, -2)
-	f.incoming:SetWidth(BAR_W)
-	f.incoming:SetJustifyH("LEFT")
-
-	-- A way to put it away without going looking for the options, since this window is the part
-	-- of the addon that can say least on this client and is the most likely to be in the way.
-	local okClose, close = pcall(CreateFrame, "Button", nil, f, "UIPanelCloseButton")
-	if okClose and close then
-		close:SetPoint("TOPRIGHT", 2, 2)
-		close:SetSize(22, 22)
-	else
-		close = CreateFrame("Button", nil, f)
-		close:SetPoint("TOPRIGHT", -4, -4)
-		close:SetSize(16, 16)
-		local x = close:CreateFontString(nil, "OVERLAY")
-		x:SetFont(FONT, 13, "OUTLINE")
-		x:SetPoint("CENTER")
-		x:SetText("x")
-		x:SetTextColor(0.9, 0.8, 0.6)
-	end
-	close:SetScript("OnClick", function()
-		local p = ns.Profile()
-		if p then p.shown = false end
-		Panel:Refresh(GetTime())
-		if ns.Options then ns.Options:Refresh() end
-		ns.Print("Readout hidden. /tapline show brings it back, or the tickbox in the options.")
-	end)
-	f.close = close
-
-	f:SetScript("OnEnter", function(self)
-		if not GameTooltip then return end
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-		GameTooltip:SetText("Tapline")
-		GameTooltip:AddLine("Drag to move. /tapline for everything else.", 1, 1, 1)
-		GameTooltip:Show()
-	end)
-	f:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
-
-	self.frame = f
-	self:Place()
-	ns.report["readout"] = "ok"
-	return f
-end
-
--- The box behind the rows, and how solid everything is. Kept apart from building them, so a
--- change of colour never costs a rebuild of the slots the game owns.
 function Panel:Restyle()
 	local p, holder = ns.Profile(), self.bars
-	if not p or not holder then return end
+	if not p then return end
+	local shade = tonumber(p.barBgAlpha) or 0.85
+	for _, plate in ipairs(self.plates or {}) do pcall(plate.SetColorTexture, plate, 0, 0, 0, shade) end
+	if not holder then return end
 	holder:SetAlpha(tonumber(p.barAlpha) or 1)
 	if holder.SetBackdropColor then
 		pcall(holder.SetBackdropColor, holder, 0.05, 0.03, 0.02, tonumber(p.bgAlpha) or 0.9)
@@ -190,7 +77,7 @@ function Panel:Rebuild()
 		return false
 	end
 	self.rebuildWanted = nil
-	self.barKey, self.container, self.cells = nil, nil, nil
+	self.barKey, self.container, self.cells, self.plates = nil, nil, nil, nil
 	if self.bars then self.bars:Hide() self.bars = nil end
 	self:BuildBars()
 	self:Refresh(GetTime())
@@ -198,99 +85,21 @@ function Panel:Rebuild()
 end
 
 function Panel:Place()
-	local f, p = self.frame, ns.Profile()
-	if not f or not p then return end
-	f:ClearAllPoints()
-	if p.x and p.y then
-		f:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p.x, p.y)
+	local p, bars = ns.Profile(), self.bars
+	if not p or not bars then return end
+	bars:ClearAllPoints()
+	if p.barX and p.barY then
+		bars:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p.barX, p.barY)
 	else
-		f:SetPoint("CENTER", UIParent, "CENTER", -260, -120)
+		bars:SetPoint("CENTER", UIParent, "CENTER", -260, -120)
 	end
-	f:SetScale(p.scale or 1)
-	f:SetAlpha(p.alpha or 1)
-	local bars = self.bars
-	if bars then
-		bars:ClearAllPoints()
-		if p.barX and p.barY then
-			bars:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", p.barX, p.barY)
-		else
-			bars:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -6)
-		end
-		bars:SetScale(p.scale or 1)
-		self:Restyle()
-	end
+	bars:SetScale(p.scale or 1)
+	self:Restyle()
 end
 
 function Panel:Refresh(now)
 	ns.state.stats.refresh = (ns.state.stats.refresh or 0) + 1
-	local p, f = ns.Profile(), self.frame
-	if not p or not f then return end
-	-- The readout and the bars are put away separately. They used to share one switch, which
-	-- meant closing the window that can say least also took away the one thing that works.
 	self:RefreshBars(now or GetTime())
-	if not p.shown then f:Hide() return end
-	f:Show()
-
-	local S = ns.state
-	-- When this client will not say what your health is, the readout says so once, quietly, and
-	-- gets out of the way. A panel of error text sitting over the game is worse than no panel: the
-	-- detail belongs in /tapline debug, and what is left here is what can still be shown.
-	local blindVitals = not (S.hp and S.hpMax and S.hpMax > 0)
-	if blindVitals ~= self.compact then
-		self.compact = blindVitals
-		f:SetHeight(blindVitals and 76 or 118)
-		f.verdict:SetFont(FONT, blindVitals and 13 or 18, 'OUTLINE')
-		f.health:SetShown(not blindVitals)
-		f.mana:SetShown(not blindVitals)
-		f.verdict:ClearAllPoints()
-		f.verdict:SetPoint("TOPLEFT", blindVitals and f or f.mana, blindVitals and "TOPLEFT" or "BOTTOMLEFT",
-			blindVitals and 8 or 0, blindVitals and -22 or -5)
-	end
-
-	if not blindVitals then
-		f.health:SetValue(S.hp / S.hpMax)
-		f.health.text:SetText(S.percentOnly and ("%d%%   (a percentage is all this client will give)"):format(S.hp)
-			or ("%d / %d   %d%%"):format(S.hp, S.hpMax, floor(S.hp / S.hpMax * 100 + 0.5)))
-		if S.mp and S.mpMax and S.mpMax > 0 then
-			f.mana:SetValue(S.mp / S.mpMax)
-			f.mana.text:SetText(("%d / %d   %d%%"):format(S.mp, S.mpMax, floor(S.mp / S.mpMax * 100 + 0.5)))
-		else
-			f.mana:SetValue(0)
-			f.mana.text:SetText("mana is secret on this client")
-		end
-	end
-
-	local key, reason, room = ns.Verdict()
-	local cost = ns.Cost()
-	if blindVitals then
-		-- Nothing to decide with, so the panel stops pretending to decide. What it can still do is
-		-- put a tap's cost against your maximum, which this client does hand over even though the
-		-- current value is secret, and turn your floor into a number you can eye off your own bar.
-		local hpMax = S.hpMaxApi
-		if cost and hpMax and hpMax > 0 then
-			f.verdict:SetText(("a tap costs %d of %d  (%d%%)"):format(cost, hpMax, floor(cost / hpMax * 100 + 0.5)))
-			f.reason:SetText(("stay above %d health: only your own bar knows where you are"):format(
-				floor(hpMax * (p.reserve or 25) / 100 + 0.5)))
-		else
-			f.verdict:SetText(cost and ("a tap costs %d"):format(cost) or "Life Tap")
-			f.reason:SetText("your health is secret to addons here, so watch your own bar")
-		end
-		f.verdict:SetTextColor(0.85, 0.8, 0.6)
-		f.room:SetText("")
-	else
-		local v = VERDICTS[key] or VERDICTS.unknown
-		f.verdict:SetText(v[1])
-		f.verdict:SetTextColor(v[2], v[3], v[4])
-		f.room:SetText((room and room > 0 and cost) and ("%d x %d"):format(room, cost) or "")
-		f.reason:SetText(reason or "")
-	end
-	local kind, line = ns.Incoming()
-	local c = INCOMING_COLORS[kind] or INCOMING_COLORS.none
-	f.incoming:SetText(line or "")
-	f.incoming:SetTextColor(c[1], c[2], c[3])
-
-	if key == "tap" and S.verdict ~= "tap" and (p.sndReady or 0) > 0 then ns.PlaySound(p.sndReady) end
-	S.verdict = key
 end
 
 -- ------------------------------------------------------------------
@@ -334,14 +143,24 @@ function Panel:RowMetrics()
 	local iconSize = max(8, floor(h * (tonumber(p.iconScale) or 1) + 0.5))
 	local overhang = floor(iconSize * ICON_OVERHANG_X + 0.5)
 	local overhangY = floor(iconSize * ICON_OVERHANG_Y + 0.5)
-	local gap = overhang + 3
+	-- The frame round an icon reaches past the picture, so by default the bar starts clear of it.
+	-- The setting adds to that or takes from it, down to nothing at all: pulled all the way in,
+	-- the bar begins where the picture ends and the soft edge of the art laps over it, which is
+	-- a fair thing to want and not this addon's business to forbid.
+	local gap = max(0, overhang + 3 + floor(tonumber(p.gapExtra) or 0))
 	-- What the bar starts at: the icon, plus the frame art on both sides of it, plus the gap.
 	local barLeft = overhang + iconSize + gap
 	local barW = max(8, w - barLeft - overhang)
-	-- A row is as tall as the taller of the bar and the icon with its frame.
-	local rowH = max(h, iconSize + overhangY * 2)
+	-- As tall as the taller of the bar and the icon, and no taller. Counting the frame art in
+	-- here too padded every row by a tenth of the icon whatever the gap was set to, so winding
+	-- the gap down to nothing still left the rows far apart. That art is a soft edge, and a
+	-- little overlap between rows is what the manager itself does.
+	local rowH = max(h, iconSize)
+	-- Negative closes the rows up further, for a big icon that wants pulling together, but never
+	-- so far that one row would sit entirely on top of the next.
+	local pitch = max(8, rowH + floor(tonumber(p.rowGap) or 4))
 	return { w = w, h = h, iconSize = iconSize, overhang = overhang, overhangY = overhangY, gap = gap,
-		barLeft = barLeft, barW = barW, rowH = rowH, pitch = rowH + 4 }
+		barLeft = barLeft, barW = barW, rowH = rowH, pitch = pitch }
 end
 
 function Panel:BarSize()
@@ -378,7 +197,12 @@ local function Adorn(frame, m)
 	bar:SetStatusBarColor(0.96, 0.55, 0.16)
 	local plate = bar:CreateTexture(nil, "BACKGROUND", nil, -8)
 	plate:SetAllPoints(bar)
-	plate:SetColorTexture(0, 0, 0, 0.85)
+	plate:SetColorTexture(0, 0, 0, tonumber((ns.Profile() or {}).barBgAlpha) or 0.85)
+	-- Named, so the skin does not lay a second plate on top of this one, and remembered, so its
+	-- shade can be changed later without rebuilding the rows the game owns.
+	bar.tlPlate = plate
+	Panel.plates = Panel.plates or {}
+	Panel.plates[#Panel.plates + 1] = plate
 	parts.bar = bar
 
 	local size = max(9, floor(h * 0.42))
@@ -499,7 +323,7 @@ function Panel:BuildBars()
 
 	local m = self:RowMetrics()
 	local w, h = m.w, m.h
-	local key = ("%dx%dx%d|"):format(w, h, m.iconSize)
+	local key = ("%dx%dx%d|%d|%d|"):format(w, h, m.iconSize, m.gap, m.pitch)
 	local any = false
 	for _, row in ipairs(ns.HOTS or {}) do
 		local ids = ns.Ranks(row.name)
@@ -610,7 +434,6 @@ function Panel:RefreshBars(now)
 end
 
 function Panel:Init()
-	self:Build()
 	self:BuildBars()
 	self:Refresh(GetTime())
 end

@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.9.0"
+ns.VERSION = "1.10.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -182,7 +182,6 @@ end
 -- Saved settings, per character
 -- ------------------------------------------------------------------
 local DEFAULTS = {
-	shown = true,
 	scale = 1,
 	alpha = 1,
 	reserve = 25,    -- per cent of maximum health to keep back after a tap
@@ -193,7 +192,6 @@ local DEFAULTS = {
 	sndApplied = 0,  -- handed to the game: fires the moment a listed heal lands, in combat too
 	sndLapsed = 0,   -- ditto for one running out
 	sndEstimate = 0, -- played by this addon when the tick clock notices a heal the game never named
-	sndReady = 0,    -- played by this addon when the panel turns to TAP
 	bars = true,     -- ask the game to draw the heal bars
 	barW = 260,      -- one heal row, in pixels
 	barH = 28,
@@ -204,6 +202,13 @@ local DEFAULTS = {
 	bgAlpha = 0.9,   -- the box behind them
 	borderAlpha = 1,
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
+	barBgAlpha = 0.85, -- the dark plate inside a bar, behind the fill
+	edge = "auto",   -- "always" draws a frame round the bar even when the client gave us one
+	rate = 30,       -- how many times a second the parts this addon draws are redrawn
+	gapExtra = 0,    -- room between the icon and the bar, on top of what the art needs
+	rowGap = 4,      -- room between one row and the next
+	minimap = true,
+	minimapAngle = 200, -- where round the map it sits, in degrees
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -938,6 +943,7 @@ local function Startup()
 	ns.ClearStaleSounds()
 	ns.Sample(GetTime())
 	if ns.Panel then ns.Panel:Init() end
+	if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 	ns.SyncSounds()
 	if C_Timer and C_Timer.After then
 		C_Timer.After(2, function()
@@ -951,6 +957,7 @@ local function Startup()
 		-- is always this session and never a mixture of this one and the last.
 		C_Timer.After(3, function()
 			if ns.Options and ns.Options.RegisterBlizzard then pcall(ns.Options.RegisterBlizzard, ns.Options) end
+			if ns.MinimapButton then pcall(ns.MinimapButton.Refresh, ns.MinimapButton) end
 		end)
 		C_Timer.After(4, function() ns.AutoReport() end)
 	end
@@ -1008,16 +1015,28 @@ for _, event in ipairs({ "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_POWER_UPDATE", "
 	ns.report["event " .. event] = ok and "ok" or "refused"
 end
 
-local acc = 0
+local acc, slowAt = 0, nil
 function ns.OnUpdate(elapsed)
 	S.stats.driver = S.stats.driver + 1
 	if not loaded then return end
 	acc = acc + elapsed
-	if acc < 0.1 then return end
+	-- How often the parts THIS addon draws are brought up to date: the readout, and the preview.
+	-- The heal bars themselves are filled by the game and animate at whatever rate it chooses,
+	-- which is not ours to set, so winding this up will not make those smoother.
+	local p = Profile()
+	local rate = (p and tonumber(p.rate)) or 30
+	if rate < 5 then rate = 5 elseif rate > 60 then rate = 60 end
+	if acc < (1 / rate) then return end
 	acc = 0
 	local now = GetTime()
-	ns.Sample(now)
-	ns.CheckLapse(now)
+	-- Health and mana are secret on this client and nothing on screen shows them any more, so
+	-- they are read once a second purely to keep the self report honest, rather than thirty
+	-- times a second to be refused thirty times.
+	if not slowAt or now - slowAt >= 1 then
+		slowAt = now
+		ns.Sample(now)
+		ns.CheckLapse(now)
+	end
 	if ns.Panel then ns.Panel:Refresh(now) end
 end
 ev:SetScript("OnUpdate", function(_, elapsed) ns.OnUpdate(elapsed) end)

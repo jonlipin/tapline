@@ -203,7 +203,7 @@ function Options:Content()
 	self.rows = {}
 
 	local y = -14
-	local intro = Label(c, "Your health is secret to addons on this client, so nothing here can decide for you. The bars are the answer: the game draws them and keeps them right in a fight.", 11, 0.7, 0.68, 0.6)
+	local intro = Label(c, "Whether a heal is on you is secret to addons on this client, so the game draws these bars rather than Tapline, and keeps them right in a fight. The alert below is played by the game too.", 11, 0.7, 0.68, 0.6)
 	intro:SetPoint("TOPLEFT", 16, y)
 	intro:SetWidth(W - 32)
 	intro:SetJustifyH("LEFT")
@@ -223,12 +223,25 @@ function Options:Content()
 	ly = self:Slider(c, left, ly, "Icon size", 0.5, 1.5, 0.05,
 		function() return P().iconScale or 1 end,
 		function(v) P().iconScale = v ns.Panel:Rebuild() end)
+	ly = self:Slider(c, left, ly, "Gap between icon and bar", -40, 40, 1,
+		function() return P().gapExtra or 0 end,
+		function(v) P().gapExtra = v ns.Panel:Rebuild() end)
+	ly = self:Slider(c, left, ly, "Gap between rows", -20, 30, 1,
+		function() return P().rowGap or 4 end,
+		function(v) P().rowGap = v ns.Panel:Rebuild() end)
+	ly = self:Slider(c, left, ly, "Redraws a second", 5, 60, 1,
+		function() return P().rate or 30 end,
+		function(v) P().rate = v end)
 	ly = self:Slider(c, left, ly, "Bar opacity", 0.1, 1, 0.05,
 		function() return P().barAlpha or 1 end,
 		function(v) P().barAlpha = v ns.Panel:Restyle() end)
 	ly = self:Slider(c, left, ly, "Scale", 0.5, 2, 0.05,
 		function() return P().scale or 1 end,
 		function(v) P().scale = v ns.Panel:Place() end)
+
+	ly = self:Slider(c, left, ly, "Bar background opacity", 0, 1, 0.05,
+		function() return P().barBgAlpha or 0.85 end,
+		function(v) P().barBgAlpha = v ns.Panel:Restyle() end)
 
 	ly = self:Heading(c, left, ly - 8, "The box behind them")
 	ly = self:Slider(c, left, ly, "Background opacity", 0, 1, 0.05,
@@ -242,10 +255,13 @@ function Options:Content()
 	ry = self:Heading(c, right, ry, "What to show")
 	ry = self:Check(c, right, ry, "The heal bars", function() return P().bars ~= false end,
 		function(v) P().bars = v if v then ns.Panel:Rebuild() end ns.Panel:Refresh(GetTime()) end)
-	ry = self:Check(c, right, ry, "The Life Tap cost readout", function() return P().shown end,
-		function(v) P().shown = v ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "A button on the minimap", function() return P().minimap ~= false end,
+		function(v) P().minimap = v if ns.MinimapButton then ns.MinimapButton:Refresh() end end)
 	ry = self:Check(c, right, ry, "Preview: run the bars on a made-up timer", function() return P().test end,
 		function(v) P().test = v ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "Always draw a frame round the bar",
+		function() return P().edge == "always" end,
+		function(v) P().edge = v and "always" or "auto" ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Plain bars: skip the copied Cooldown Manager art", function() return P().plain end,
 		function(v) P().plain = v ns.Panel:Rebuild() end)
 	ry = self:Slider(c, right, ry - 6, "Health to keep back", 0, 90, 5,
