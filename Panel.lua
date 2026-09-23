@@ -207,12 +207,20 @@ function Panel:Refresh(now)
 	local key, reason, room = ns.Verdict()
 	local cost = ns.Cost()
 	if blindVitals then
-		-- Nothing to decide with, so the panel stops pretending to decide and shows the two things
-		-- it does know: what a tap costs, and what is heading your way.
-		f.verdict:SetText(cost and ("a tap costs %d"):format(cost) or "Life Tap")
+		-- Nothing to decide with, so the panel stops pretending to decide. What it can still do is
+		-- put a tap's cost against your maximum, which this client does hand over even though the
+		-- current value is secret, and turn your floor into a number you can eye off your own bar.
+		local hpMax = S.hpMaxApi
+		if cost and hpMax and hpMax > 0 then
+			f.verdict:SetText(("a tap costs %d of %d  (%d%%)"):format(cost, hpMax, floor(cost / hpMax * 100 + 0.5)))
+			f.reason:SetText(("stay above %d health: only your own bar knows where you are"):format(
+				floor(hpMax * (p.reserve or 25) / 100 + 0.5)))
+		else
+			f.verdict:SetText(cost and ("a tap costs %d"):format(cost) or "Life Tap")
+			f.reason:SetText("your health is secret to addons here, so watch your own bar")
+		end
 		f.verdict:SetTextColor(0.85, 0.8, 0.6)
 		f.room:SetText("")
-		f.reason:SetText("your health is secret to addons here, so the bars below are the answer")
 	else
 		local v = VERDICTS[key] or VERDICTS.unknown
 		f.verdict:SetText(v[1])

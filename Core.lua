@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.1.0"
+ns.VERSION = "1.2.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -208,6 +208,17 @@ function ns.InitDB()
 	for k, v in pairs(DEFAULTS) do
 		if p[k] == nil then p[k] = v end
 	end
+	-- The sound the game plays when a heal lands is the one feature on this client that works end
+	-- to end, and it was shipped switched off, which made the addon look like it did nothing. It
+	-- is turned on once, and stays wherever you put it afterwards.
+	if not p.soundsDefaulted then
+		p.soundsDefaulted = true
+		if (p.sndApplied or 0) == 0 then
+			for i, c in ipairs(ns.SOUNDS or {}) do
+				if c[4] then p.sndApplied = i break end
+			end
+		end
+	end
 	ns.db, ns.p, ns.charKey = TaplineDB, p, key
 	return p
 end
@@ -303,6 +314,9 @@ end
 function ns.ReadVitals()
 	local hp, hpWhy = Read(UnitHealth, "player")
 	local hpMax, maxWhy = Read(UnitHealthMax, "player")
+	-- Kept whatever happens to the rest. The maximum is NOT secret on this client even though the
+	-- current value is, and it is the one number the panel can still put a tap's cost against.
+	S.hpMaxApi = hpMax
 	local source = "UnitHealth"
 	if not hp or not hpMax or hpMax <= 0 then
 		local why = hpWhy or maxWhy or "gave nothing"
@@ -338,6 +352,7 @@ function ns.ReadVitals()
 	local mana = Enum and Enum.PowerType and Enum.PowerType.Mana or 0
 	local mp, mpWhy = Read(UnitPower, "player", mana)
 	local mpMax, mpMaxWhy = Read(UnitPowerMax, "player", mana)
+	S.mpMaxApi = mpMax
 	if not mp or not mpMax or mpMax <= 0 then
 		local why = mpWhy or mpMaxWhy or "gave nothing"
 		local v, hi, barWhy = FromBar("mana")
@@ -457,12 +472,12 @@ end
 -- One reading of health and mana. Everything the estimate knows comes from the gaps between these.
 function ns.Sample(now)
 	local hp, hpMax, mp, mpMax = ns.ReadVitals()
+	S.stats.samples = S.stats.samples + 1
 	if not hp or not hpMax or hpMax <= 0 then
 		S.readable = false
 		return
 	end
 	S.readable = true
-	S.stats.samples = S.stats.samples + 1
 	local lastHp, lastMax = S.hp, S.hpMax
 	S.hp, S.hpMax, S.mp, S.mpMax = hp, hpMax, mp, mpMax
 	-- A buff that raises your maximum raises the current health with it, and that is not a heal.

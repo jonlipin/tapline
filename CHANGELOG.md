@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.2.0
+
+- The log settled every open question at once. On this client your **current** health, mana and health percentage are all secret, and so is incoming-heal prediction, but the **maximums are not**: `UnitHealthMax` and `UnitPowerMax` hand over real numbers, as does `UnitLevel`. `issecretvalue` was also cleared of suspicion, since it answers false for a plain 1 and for a string.
+- So the readout now says the most useful true thing it can: what a tap costs against your actual maximum, as a number and a share, and what health to stay above. Your own health bar is the only thing that knows where you are, and the panel says so rather than pretending otherwise.
+- The alert the game plays when a heal lands on you is switched **on** by default now. It is the one feature here that works end to end, and shipping it silent made the addon look like it did nothing. A sound you turn off stays off.
+- Every sample attempt is counted, not only the ones that answered. The report read "0 samples taken" while the tick had run 632 times, which is exactly the confusion that counter exists to prevent.
+- `/tapline debug` now lists each rank of Life Tap, whether this character knows it, and the description the client gives for it. The cost is parsed out of that text, so when the number looks wrong that is where to look.
+
+### Confirmed working, from the same log
+
+- All five handovers to a game-drawn slot are accepted here: `SetIcon`, `SetDurationBar`, `SetDurationText`, `SetSpellName`, `SetApplicationCount`. Three slots of three built.
+- The rank ids written from memory were almost all right: Renew 10 of 10, Rejuvenation 11 of 11, Regrowth 9 with one the client has never heard of.
+
 ## 1.1.0
 
 - Confirmed in game, and it settles the design: **this client hands your own health and mana back as secret values.** Not refused, not missing. `UnitHealth`, `UnitPower`, `PlayerFrame.healthbar`, the deep `PlayerFrameContent...HealthBarsContainer.HealthBar`, every one of them secret, out of combat, with auras perfectly readable at the same moment. An addon may hold a secret value but never look inside it, so there is no arithmetic to be done on your own health here, by this addon or any other.

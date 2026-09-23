@@ -88,9 +88,24 @@ function ns.Debug()
 		(S.hp and S.hpMax) and (tostring(S.hp) .. "/" .. tostring(S.hpMax) .. " via " .. tostring(S.hpSource)) or ("|cffff5050none|r (" .. tostring(S.hpWhy) .. ")"),
 		(S.mp and S.mpMax) and (tostring(S.mp) .. "/" .. tostring(S.mpMax)) or ("|cffff5050none|r (" .. tostring(S.mpWhy) .. ")")))
 
+	Print(("  maximums, which are NOT secret here: health %s, mana %s, level %s"):format(
+		tostring(S.hpMaxApi), tostring(S.mpMaxApi), tostring(select(1, ns.Read(UnitLevel, "player")))))
 	local cost, why = ns.Cost()
 	Print(("  a tap costs %s (%s)%s"):format(tostring(cost), tostring(why),
 		S.rankGuess and ", though the client would not say which ranks you know" or ""))
+	-- Which ranks this character actually has, and what the client says each one does. The cost is
+	-- read out of that description, so when the number looks wrong this is where to look.
+	for i, id in ipairs((ns.RANK_IDS and ns.RANK_IDS["Life Tap"]) or {}) do
+		local known = ns.Read(function() return IsSpellKnown(id) and 1 or 0 end)
+		local text
+		if C_Spell and C_Spell.GetSpellDescription then
+			local okD, d = pcall(C_Spell.GetSpellDescription, id)
+			d = okD and Clean(d) or nil
+			text = type(d) == "string" and d:gsub("%s+", " "):sub(1, 90) or tostring(d)
+		end
+		Print(("    rank %d (%d): known %s, description %s"):format(i, id,
+			known == nil and "would not say" or (known == 1 and "yes" or "no"), tostring(text)))
+	end
 	Print(("  auras: secret right now %s, last read %s, so the answer is %s"):format(
 		YesNo(ns.AurasSecret()), S.auraReadFailed and "|cffff5050refused|r" or "allowed",
 		ns.Blind() and "estimated" or "read"))
