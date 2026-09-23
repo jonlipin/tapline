@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.11.2"
+ns.VERSION = "1.12.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -145,19 +145,19 @@ local rankIndex, rankState = nil, {}
 ns.rankState = rankState
 
 function ns.Ranks(name)
-	if type(name) ~= "string" or type(ns.RANK_IDS) ~= "table" then return nil end
+	if type(name) ~= "string" then return nil end
 	if not rankIndex then
 		rankIndex = {}
-		for spell, ids in pairs(ns.RANK_IDS) do rankIndex[strlower(spell)] = { spell = spell, ids = ids } end
+		for spell, ids in pairs(ns.RANK_IDS or {}) do rankIndex[strlower(spell)] = { spell = spell, ids = ids } end
 	end
 	local row = rankIndex[strlower(name)]
-	if not row then return nil end
-	local st = rankState[row.spell]
+	local st = rankState[name]
 	if not st then
-		st = { ids = {}, tries = 0, kept = 0, dropped = 0, pending = #row.ids }
-		rankState[row.spell] = st
+		st = { ids = {}, tries = 0, kept = 0, dropped = 0, pending = row and #row.ids or 0, learned = 0 }
+		rankState[name] = st
 	end
-	if st.pending > 0 and st.tries < 4 then
+	-- The ids written down in Data.lua, kept only where this client agrees they carry that name.
+	if row and st.pending > 0 and st.tries < 4 then
 		st.tries = st.tries + 1
 		st.kept, st.dropped, st.pending = 0, 0, 0
 		local want = strlower(row.spell)
@@ -174,8 +174,71 @@ function ns.Ranks(name)
 			end
 		end
 	end
-	if st.kept == 0 then return nil end
+	-- And the ids this addon has watched land on you, which is the half that does not depend on my
+	-- having guessed right about a client that has spells of its own.
+	local learned = ns.db and ns.db.learned and ns.db.learned[name]
+	if learned then
+		st.learned = 0
+		for id in pairs(learned) do
+			st.ids[id] = true
+			st.learned = st.learned + 1
+		end
+	end
+	if not next(st.ids) then return nil end
 	return st.ids
+end
+
+-- Watch what actually lands on you, and remember the spell id of anything whose name is one of
+-- the heals we care about.
+--
+-- This client has spells the rest of the game does not, so a list of ids compiled anywhere else is
+-- a guess, and a wrong guess means a heal that never shows. An id seen once is worth more than any
+-- number of them written from memory, and it is kept in the saved variables so it is only ever
+-- learned once, by whichever character happens to be standing near a healer.
+function ns.Learn()
+	if ns.AurasSecret() then return 0 end
+	local C = C_UnitAuras
+	if not (C and ns.db) then return 0 end
+	ns.db.learned = type(ns.db.learned) == "table" and ns.db.learned or {}
+	local wanted = {}
+	for _, hot in ipairs(ns.HOTS or {}) do wanted[strlower(hot.name)] = hot.name end
+	local found = 0
+	local function note(name, id)
+		local proper = name and wanted[strlower(name)]
+		if not (proper and type(id) == "number") then return end
+		local bag = ns.db.learned[proper]
+		if not bag then bag = {} ns.db.learned[proper] = bag end
+		if not bag[id] then
+			bag[id] = true
+			found = found + 1
+			ns.Print(("Learned that %s is spell %d on this client. It will be watched for from now on."):format(proper, id))
+		end
+	end
+	if C.GetAuraDataBySpellName then
+		for _, hot in ipairs(ns.HOTS or {}) do
+			local ok, aura = pcall(C.GetAuraDataBySpellName, "player", hot.name, "HELPFUL")
+			if ok and type(aura) == "table" then note(Clean(aura.name), Clean(aura.spellId)) end
+		end
+	end
+	if C.GetAuraDataByIndex then
+		for i = 1, 40 do
+			local secret = false
+			if C_Secrets and C_Secrets.ShouldUnitAuraIndexBeSecret then
+				local okS, v = pcall(C_Secrets.ShouldUnitAuraIndexBeSecret, "player", i, "HELPFUL")
+				secret = (not okS) or Clean(v) ~= false
+			end
+			if secret then break end
+			local ok, aura = pcall(C.GetAuraDataByIndex, "player", i, "HELPFUL")
+			if not ok or type(aura) ~= "table" then break end
+			note(Clean(aura.name), Clean(aura.spellId))
+		end
+	end
+	if found > 0 then
+		-- A heal we could not watch for a moment ago can be watched for now.
+		ns.SyncSounds()
+		if ns.Panel and not (InCombatLockdown and InCombatLockdown()) then ns.Panel:Rebuild() end
+	end
+	return found
 end
 
 -- ------------------------------------------------------------------
@@ -898,6 +961,7 @@ local function Startup()
 		C_Timer.After(2, function()
 			for _, row in ipairs(ns.HOTS or {}) do ns.Ranks(row.name) end
 			ns.Ranks("Life Tap")
+			ns.Learn()
 			ns.ProbeSoundFiles()
 			ns.SyncSounds()
 			if ns.Panel then ns.Panel:BuildBars() end
@@ -932,7 +996,10 @@ function ns.OnEvent(event, a1, _, a3)
 		return
 	end
 	if not loaded then return end
-	if event == "UNIT_SPELLCAST_SUCCEEDED" then
+	if event == "UNIT_AURA" then
+		-- Something landed on you, and out here it can still be read, so see what it was called.
+		if a1 == "player" then ns.Learn() end
+	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
 		if a1 == "player" then ns.NoteOwnCast(a3) end
 	elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_POWER_UPDATE" then
 		if a1 == "player" then ns.Sample(GetTime()) end
@@ -957,7 +1024,7 @@ end
 ev:SetScript("OnEvent", function(_, event, a1, a2, a3) ns.OnEvent(event, a1, a2, a3) end)
 ev:RegisterEvent("ADDON_LOADED")
 ev:RegisterEvent("PLAYER_LOGIN")
-for _, event in ipairs({ "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_POWER_UPDATE", "UNIT_SPELLCAST_SUCCEEDED",
+for _, event in ipairs({ "UNIT_AURA", "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_POWER_UPDATE", "UNIT_SPELLCAST_SUCCEEDED",
 	"PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED", "PLAYER_ENTERING_WORLD",
 	"ADDON_RESTRICTION_STATE_CHANGED" }) do
 	local ok = pcall(ev.RegisterEvent, ev, event)

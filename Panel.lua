@@ -136,6 +136,20 @@ end
 -- it does down. Both are shares of the icon, so both grow with it.
 local ICON_OVERHANG_X, ICON_OVERHANG_Y = 0.200, 0.175
 
+-- The heals this client actually has. One it does not know is not drawn at all, rather than left
+-- as a row that can never fill: the list in Data.lua is allowed to reach past what any one client
+-- carries precisely because of this.
+function Panel:KnownHots()
+	local all = ns.HOTS or {}
+	local out, missing = {}, {}
+	for _, row in ipairs(all) do
+		if ns.Ranks(row.name) then out[#out + 1] = row else missing[#missing + 1] = row.name end
+	end
+	ns.report["heals this client has"] = ("%d of %d%s"):format(#out, #all,
+		#missing > 0 and (", without " .. table.concat(missing, ", ")) or "")
+	return out
+end
+
 function Panel:RowMetrics()
 	local p = ns.Profile() or {}
 	local h = max(12, min(64, tonumber(p.barH) or 28))
@@ -326,8 +340,11 @@ function Panel:BuildBars()
 	local m = self:RowMetrics()
 	local w, h = m.w, m.h
 	local key = ("%dx%dx%d|%d|%d|"):format(w, h, m.iconSize, m.gap, m.pitch)
+	-- Only the heals this client actually has. Asked once, so the rows, the box round them and the
+	-- slots in them cannot disagree about how many there are.
+	local rows = self:KnownHots()
 	local any = false
-	for _, row in ipairs(ns.HOTS or {}) do
+	for _, row in ipairs(rows) do
 		local ids = ns.Ranks(row.name)
 		local list = {}
 		if ids then for id in pairs(ids) do list[#list + 1] = id end end
@@ -364,10 +381,10 @@ function Panel:BuildBars()
 		holder:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 		self.bars = holder
 	end
-	holder:SetSize(w + 12, #(ns.HOTS or {}) * m.pitch + 8)
+	holder:SetSize(w + 12, #rows * m.pitch + 8)
 	if not self.cells then
 		self.cells = {}
-		for i, row in ipairs(ns.HOTS or {}) do
+		for i, row in ipairs(rows) do
 			-- One row that will not build must not cost the others, nor the slots under them.
 			local okCell, made = pcall(Cell, holder, row, i)
 			if okCell and made then
@@ -398,7 +415,7 @@ function Panel:BuildBars()
 	self.container = c
 
 	local made = 0
-	for i, row in ipairs(ns.HOTS or {}) do
+	for i, row in ipairs(rows) do
 		local ids = ns.Ranks(row.name)
 		if ids then
 			local okSlot, frame = pcall(c.AddAuraSlot, c, row.name, "HELPFUL", {
@@ -423,7 +440,7 @@ function Panel:BuildBars()
 	end
 	self.barKey = key
 	ns.report["game-drawn bars"] = ("%d of %d slots, %dx%d, icon %d, gap %d"):format(
-		made, #(ns.HOTS or {}), w, h, m.iconSize, m.gap)
+		made, #rows, w, h, m.iconSize, m.gap)
 end
 
 function Panel:RefreshBars(now)

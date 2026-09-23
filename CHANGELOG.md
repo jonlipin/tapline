@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.12.0
+
+- **Riptide and Wild Growth are watched for**, with the durations this client's own spell text gives: Riptide heals "an additional 445 over 15 sec", Wild Growth "336 over 7 sec". Lifebloom is not in this game, so it is not listed.
+
+- **Spell ids are learned from the game now, rather than written from memory.** This is the important part and it was the wrong way round before.
+
+Forever has spells the rest of the game does not: its own build notes mark Riptide and Wild Growth as new, alongside Penance, Lava Burst, Mangle and the rest. An id list compiled from any other version of the game is therefore a guess, and a wrong guess means a heal that silently never shows.
+
+So Tapline watches what actually lands on you. Any helpful aura whose name is one of the heals it cares about has its spell id remembered, and from then on that heal is watched for like any other. It says so in chat when it learns one, because something learned quietly cannot be trusted later. The ids are kept account wide, so whichever character happened to be standing near a druid teaches the rest, and it only has to happen once.
+
+The ids written down in `Data.lua` are still tried first and still checked against the client, so anything guessed right keeps working immediately. They are now a head start rather than the whole answer.
+
+- **A heal this client has not got is no longer drawn at all.** It used to be a row that could never fill. That is what makes the list above safe to extend: a name that turns out not to exist here costs nothing but the line it is written on. `/tapline debug` says which heals this client has, and which it has not.
+
 ## 1.11.2
 
 - **Fixed: the options page ran off the bottom of the panel with no way to reach the rest.** It is taller than anything that hosts it, so it scrolls now, by the mouse wheel and nothing else. A scrollbar wants a template, templates are not on disk on this client, and a missing one would take the whole page down with it; the wheel needs nothing and cannot fail.

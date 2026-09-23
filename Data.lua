@@ -15,16 +15,28 @@ ns.RANK_IDS = {
 	["Renew"] = { 139, 6074, 6075, 6076, 6077, 6078, 10927, 10928, 10929, 25315 },
 	["Rejuvenation"] = { 774, 1058, 1430, 2090, 2091, 3627, 8910, 9839, 9840, 9841, 25299 },
 	["Regrowth"] = { 8936, 8938, 8939, 8940, 8941, 9750, 9856, 9857, 9858, 26980 },
+	-- Riptide and Wild Growth are this client's own spells rather than any other version's, so
+	-- these ids are a starting guess. The real ones are learned from the game: see ns.Learn.
+	["Riptide"] = { 61295, 61299, 61300, 61301 },
+	["Wild Growth"] = { 48438, 53248, 53249, 53251 },
 	["Life Tap"] = { 1454, 1455, 1456, 11687, 11688, 11689 },
 }
 
 -- The heals over time another player can put on you: how long each runs and how far apart its ticks
 -- are. The period is what lets a run of health gains be recognised as one spell; the duration is
 -- what puts a time on it when the auras themselves cannot be read.
+-- A heal listed here that this client does not have is withheld: its ranks resolve to nothing,
+-- and a row is only drawn for a heal the client agrees exists. So a guess costs nothing but the
+-- line it is written on, and the ones below reach past vanilla deliberately, because this
+-- client turns out to have spells from later than that.
 ns.HOTS = {
 	{ name = "Renew", duration = 15, period = 3 },
 	{ name = "Rejuvenation", duration = 12, period = 3 },
 	{ name = "Regrowth", duration = 21, period = 3 },
+	-- Durations taken from this client's own spell text: Riptide heals "an additional 445 over 15
+	-- sec", Wild Growth "336 over 7 sec".
+	{ name = "Riptide", duration = 15, period = 3 },
+	{ name = "Wild Growth", duration = 7, period = 1 },
 }
 
 -- What a Life Tap costs in health, by rank. The client's own spell description is asked first and
