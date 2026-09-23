@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.3.0
+
+- **The explosion is gone.** The alert was switched on by taking the first entry in the list that had a sound file behind it, and that entry is the one called Explosion, so every heal landing on you set off a detonation. The default is a quieter cue now, anyone who was handed the explosion is moved off it once, and a sound chosen on purpose is never touched. The list is looked up by name rather than by position, which is what caused this.
+- `/tapline sound try` plays every sound the game can make in a fight, one every two seconds, announcing each one's number as it goes. The names in the list were written from memory against file ids and only two have ever been confirmed by ear. Tell me which number sounded like what and the names get fixed.
+- **The bars wear the Cooldown Manager's own art.** A manager bar is found at runtime and measured: the real fill texture or atlas, its colour, the pieces around it and how far each reaches past the bar, all stored as fractions of the bar's height so they scale with it. Naming an atlas and hoping is how you get art of the wrong shape. With no donor to copy, a hand-made frame in the same spirit is used, and `/tapline debug` says which is in use.
+- **A timer on every bar**, written the way the manager writes them: "6 s", "1 m", and tenths under a second. Counted down rather than rounded, because a bar reading 7 with 6.4 left is lying in the direction that gets you killed.
+- **A preview.** `/tapline test`, or the tickbox in the options, runs every row on a made-up countdown at the real heal's own speed, so the layout can be judged without waiting on a healer.
+- **An options window**, built out of the client's own widgets with sliders for everything numeric: show the readout, show the bars, preview, bar width, bar height, scale, health to keep back, and both game-played sounds as a row of numbered buttons that play when pressed. `/tapline` opens it; `/tapline show` is now what toggles the readout.
+
+It is deliberately Tapline's own window rather than a page in Blizzard's settings: on this client, registering proxy settings or opening the settings panel from addon code puts the addon's mark on Blizzard's own, and the game then starts refusing its own reads.
+
+- Bar width and height are settings, and changing either rebuilds the game's slots, since a slot cannot be resized once the game has placed it.
+
 ## 1.2.1
 
 - The report now writes itself into `TaplineDB.log` a few seconds after every login, to the log alone and not to chat, and starts the log fresh each time. The old way needed `/tapline log` to be typed **before** the reload, and getting that order wrong left the previous session's report sitting on disk looking exactly like the current one. A plain `/reload` is now enough, and what is on disk is always this session rather than a mixture of two.

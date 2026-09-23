@@ -173,7 +173,7 @@ function Panel:Refresh(now)
 	if not p or not f then return end
 	if not p.shown then f:Hide() if self.bars then self.bars:Hide() end return end
 	f:Show()
-	if self.bars then self.bars:SetShown(p.bars ~= false) end
+	self:RefreshBars(now or GetTime())
 
 	local S = ns.state
 	-- When this client will not say what your health is, the readout says so once, quietly, and
@@ -238,15 +238,19 @@ function Panel:Refresh(now)
 end
 
 -- ------------------------------------------------------------------
--- The bars the game draws
+-- The heal bars
 -- ------------------------------------------------------------------
--- The regions handed to one slot. The game owns when they are shown and what they say; we own only
--- what they look like and where they are.
--- Every call here is guarded on its own. One pcall round the lot was worse than useless: the slot
--- frame is the game's, resizing one is refused, and that single refusal threw away the icon, the
--- bar and the text with it, so the game fell back to drawing its own presentation wherever it
--- liked. The button is never resized now, and each handover stands or falls by itself. What the
--- game accepted is counted, so the report can say which of them this client allows.
+-- Each row is two bars in the same place. Underneath is one of ours, dim and empty, naming the
+-- heal it is waiting for and showing a countdown when you are previewing the layout. Over it sits
+-- a slot the GAME fills, which is the only thing on this client that can follow an aura through a
+-- fight. When a heal is on you, the game's row covers ours entirely; when it is not, the game
+-- hides its row and ours shows through. Both wear the same art, so the swap is invisible.
+--
+-- Every handover to a slot is guarded on its own. One pcall round the lot was worse than useless:
+-- the slot frame is the game's, resizing one is refused, and that single refusal threw away the
+-- icon, the bar and the text with it, so the game fell back to drawing its own presentation
+-- wherever it liked. The button is never resized now. What the game accepted is counted, so the
+-- report can say which handovers this client allows.
 ns.slotCalls = {}
 local function Hand(button, method, ...)
 	if not button[method] then ns.slotCalls[method] = "no such method" return false end
@@ -255,58 +259,78 @@ local function Hand(button, method, ...)
 	return ok
 end
 
+function Panel:BarSize()
+	local p = ns.Profile() or {}
+	local h = max(12, min(64, tonumber(p.barH) or 28))
+	local w = max(80, min(600, tonumber(p.barW) or 260))
+	return w, h
+end
+
+-- The icon, the bar and the two fontstrings that make one row, dressed in the client's own art.
+local function BuildRow(parent, w, h)
+	local row = CreateFrame("Frame", nil, parent)
+	row:SetSize(w, h)
+
+	local icon = row:CreateTexture(nil, "ARTWORK")
+	icon:SetSize(h, h)
+	icon:SetPoint("LEFT")
+	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+	local bar = CreateFrame("StatusBar", nil, row)
+	bar:SetSize(max(8, w - h - 4), h)
+	bar:SetPoint("LEFT", row, "LEFT", h + 4, 0)
+	bar:SetMinMaxValues(0, 1)
+	bar:SetValue(1)
+	ns.Skin:Dress(bar, h, icon)
+
+	local nameFont, nameSize, nameFlags = ns.SkinFont("nameFont", h)
+	local name = bar:CreateFontString(nil, "OVERLAY")
+	name:SetFont(nameFont, nameSize, nameFlags)
+	name:SetPoint("LEFT", bar, "LEFT", floor(h * 0.25), 0)
+	name:SetJustifyH("LEFT")
+
+	local timeFont, timeSize, timeFlags = ns.SkinFont("durFont", h)
+	local time = bar:CreateFontString(nil, "OVERLAY")
+	time:SetFont(timeFont, timeSize, timeFlags)
+	time:SetPoint("RIGHT", bar, "RIGHT", -floor(h * 0.25), 0)
+	time:SetJustifyH("RIGHT")
+
+	local count = bar:CreateFontString(nil, "OVERLAY")
+	count:SetFont(timeFont, max(8, floor(timeSize * 0.8)), timeFlags)
+	count:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -1, 1)
+
+	row.icon, row.bar, row.name, row.time, row.count = icon, bar, name, time, count
+	return row
+end
+
+-- What the game is handed for one heal. It owns when these are shown and what they say.
 local function InitSlot(row)
 	return function(button)
 		if not button then return end
 		pcall(function()
-			local icon = button:CreateTexture(nil, "ARTWORK")
-			icon:SetSize(CELL_H, CELL_H)
-			icon:SetPoint("LEFT")
-			icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-			Hand(button, "SetIcon", icon)
-
-			local bar = CreateFrame("StatusBar", nil, button)
-			bar:SetSize(CELL_W - CELL_H - 3, CELL_H - 2)
-			bar:SetPoint("LEFT", button, "LEFT", CELL_H + 3, 0)
-			bar:SetStatusBarTexture(BAR_TEXTURE)
-			bar:SetStatusBarColor(0.25, 0.75, 0.35)
-			local bg = bar:CreateTexture(nil, "BACKGROUND")
-			bg:SetAllPoints(bar)
-			-- Opaque: the cell underneath is still drawn, and a see-through fill lets its greyed
-			-- out name read through the time the game is writing.
-			bg:SetColorTexture(0, 0, 0, 1)
-			Hand(button, "SetDurationBar", bar)
-
-			local time = button:CreateFontString(nil, "OVERLAY")
-			time:SetFont(FONT, 10, "OUTLINE")
-			time:SetPoint("RIGHT", bar, "RIGHT", -4, 0)
-			Hand(button, "SetDurationText", time)
-
-			local name = button:CreateFontString(nil, "OVERLAY")
-			name:SetFont(FONT, 10, "OUTLINE")
-			name:SetPoint("LEFT", bar, "LEFT", 4, 0)
-			if button.SetSpellName then Hand(button, "SetSpellName", name)
-			else Hand(button, "SetNameText", name) end
-
-			local count = button:CreateFontString(nil, "OVERLAY")
-			count:SetFont(FONT, 9, "OUTLINE")
-			count:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -1, 1)
-			Hand(button, "SetApplicationCount", count)
+			local w, h = Panel:BarSize()
+			local made = BuildRow(button, w, h)
+			made:SetAllPoints(button)
+			button.tlRow = made
+			Hand(button, "SetIcon", made.icon)
+			Hand(button, "SetDurationBar", made.bar)
+			Hand(button, "SetDurationText", made.time)
+			if button.SetSpellName then Hand(button, "SetSpellName", made.name)
+			else Hand(button, "SetNameText", made.name) end
+			Hand(button, "SetApplicationCount", made.count)
 		end)
 	end
 end
 
--- A cell of our own under each slot, so an empty row still says which heal it is waiting for.
+-- Our own row, under the game's. Dim and empty while nothing is on you, and running a made-up
+-- countdown while you are previewing the layout.
 local function Cell(parent, row, index)
-	local cell = CreateFrame("Frame", nil, parent)
-	cell:SetSize(CELL_W, CELL_H)
-	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * (CELL_H + 3))
-	local icon = cell:CreateTexture(nil, "ARTWORK")
-	icon:SetSize(CELL_H, CELL_H)
-	icon:SetPoint("LEFT")
-	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	local w, h = Panel:BarSize()
+	local cell = BuildRow(parent, w, h)
+	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * (h + 4))
+
 	-- By id, not by name. Asking for "Renew" by name gets a warlock nothing, because the client
-	-- answers that question out of your own spellbook; any resolved rank has the icon on it.
+	-- answers that question out of your own spellbook; any resolved rank carries the icon.
 	local tex
 	local ids = ns.Ranks(row.name)
 	if ids then
@@ -316,48 +340,70 @@ local function Cell(parent, row, index)
 		end
 	end
 	if not tex then local _, t = ns.SpellInfo(row.name) tex = t end
-	icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
-	icon:SetDesaturated(true)
-	icon:SetAlpha(0.35)
-	local label = cell:CreateFontString(nil, "OVERLAY")
-	label:SetFont(FONT, 10, "")
-	label:SetPoint("LEFT", cell, "LEFT", CELL_H + 7, 0)
-	label:SetTextColor(0.5, 0.48, 0.42)
-	label:SetText(row.name)
-	cell.icon, cell.label = icon, label
+	cell.icon:SetTexture(tex or "Interface\\Icons\\INV_Misc_QuestionMark")
+	cell.name:SetText(row.name)
+	cell.row = row
 	return cell
 end
 
--- Built out of combat only: the game refuses to make one of these in a fight, and refuses to let a
--- slot be re-pointed once it has been placed. Rebuilt when the ranks finish resolving, since a slot
--- is given ids and the set of ids it should hold changes as the client answers.
+function Panel:DressCell(cell, testing, now)
+	local w, h = self:BarSize()
+	if testing then
+		-- A preview that moves, so the layout can be judged without waiting on a healer. The clock
+		-- is the heal's own duration, so a test bar runs at the speed the real one will.
+		local period = (cell.row and cell.row.duration) or 15
+		local left = period - ((now + (cell.testOffset or 0)) % period)
+		cell.bar:SetValue(left / period)
+		cell.time:SetText(ns.BarTime(left))
+		cell.icon:SetDesaturated(false)
+		cell.icon:SetAlpha(1)
+		cell.bar:SetAlpha(1)
+		cell.name:SetTextColor(1, 1, 1)
+		cell.time:SetTextColor(1, 1, 1)
+	else
+		cell.bar:SetValue(0)
+		cell.time:SetText("")
+		cell.icon:SetDesaturated(true)
+		cell.icon:SetAlpha(0.35)
+		cell.bar:SetAlpha(0.45)
+		cell.name:SetTextColor(0.55, 0.53, 0.47)
+	end
+end
+
+-- Built out of combat only: the game refuses to make a container in a fight, and refuses to let a
+-- slot be re-pointed once placed. Rebuilt when the ranks finish resolving or the size changes,
+-- since a slot is given ids and the set of ids it should hold changes as the client answers.
 function Panel:BuildBars()
 	local p = ns.Profile()
 	if not p or p.bars == false then return end
 	if InCombatLockdown and InCombatLockdown() then return end
 
-	local want = {}
+	local w, h = self:BarSize()
+	local key = ("%dx%d|"):format(w, h)
+	local any = false
 	for _, row in ipairs(ns.HOTS or {}) do
 		local ids = ns.Ranks(row.name)
-		if ids then
-			local list = {}
-			for id in pairs(ids) do list[#list + 1] = id end
-			table.sort(list)
-			want[row.name] = table.concat(list, ",")
-		end
+		local list = {}
+		if ids then for id in pairs(ids) do list[#list + 1] = id end end
+		table.sort(list)
+		if #list > 0 then any = true end
+		key = key .. row.name .. "=" .. table.concat(list, ",") .. ";"
 	end
-	local key = ""
-	for _, row in ipairs(ns.HOTS or {}) do key = key .. (want[row.name] or "-") .. ";" end
 	if key == self.barKey then return end
-	if key == ";;" or key:find("^[-;]*$") then
+	if not any then
 		ns.report["game-drawn bars"] = "no ranks resolved yet"
 		return
+	end
+
+	-- The size changed, so the rows are rebuilt from scratch: a slot cannot be resized afterwards.
+	if self.bars and self.barSize ~= w .. "x" .. h then
+		for _, cell in ipairs(self.cells or {}) do cell:Hide() end
+		self.cells = nil
 	end
 
 	local holder = self.bars
 	if not holder then
 		holder = Plate("TaplineBars")
-		holder:SetSize(CELL_W + 12, #(ns.HOTS or {}) * (CELL_H + 3) + 9)
 		holder:SetFrameStrata("MEDIUM")
 		holder:SetClampedToScreen(true)
 		MakeMovable(holder, "barX", "barY")
@@ -371,10 +417,17 @@ function Panel:BuildBars()
 		end)
 		holder:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 		self.bars = holder
-		self.cells = {}
-		for i, row in ipairs(ns.HOTS or {}) do self.cells[i] = Cell(holder, row, i) end
-		self:Place()
 	end
+	holder:SetSize(w + 12, #(ns.HOTS or {}) * (h + 4) + 8)
+	if not self.cells then
+		self.cells = {}
+		for i, row in ipairs(ns.HOTS or {}) do
+			self.cells[i] = Cell(holder, row, i)
+			self.cells[i].testOffset = i * 3
+		end
+	end
+	self.barSize = w .. "x" .. h
+	self:Place()
 
 	-- A container whose slots must change is thrown away and made again: the game gives no way to
 	-- take a slot back out of one.
@@ -404,7 +457,7 @@ function Panel:BuildBars()
 			if okSlot and frame then
 				made = made + 1
 				local cell = self.cells[i]
-				-- The slot frame is the game's; positioning is the only thing done to it, and even
+				-- The slot frame is the game's. Positioning is the only thing done to it, and even
 				-- that is guarded, because reading anything off it is an error.
 				pcall(function()
 					frame:ClearAllPoints()
@@ -417,7 +470,15 @@ function Panel:BuildBars()
 		end
 	end
 	self.barKey = key
-	ns.report["game-drawn bars"] = ("%d of %d slots"):format(made, #(ns.HOTS or {}))
+	ns.report["game-drawn bars"] = ("%d of %d slots, %dx%d"):format(made, #(ns.HOTS or {}), w, h)
+end
+
+function Panel:RefreshBars(now)
+	local p = ns.Profile()
+	if not p or not self.bars then return end
+	self.bars:SetShown(p.shown and p.bars ~= false)
+	local testing = p.test and true or false
+	for _, cell in ipairs(self.cells or {}) do self:DressCell(cell, testing, now) end
 end
 
 function Panel:Init()

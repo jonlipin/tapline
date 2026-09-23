@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.2.1"
+ns.VERSION = "1.3.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -195,6 +195,9 @@ local DEFAULTS = {
 	sndEstimate = 0, -- played by this addon when the tick clock notices a heal the game never named
 	sndReady = 0,    -- played by this addon when the panel turns to TAP
 	bars = true,     -- ask the game to draw the heal bars
+	barW = 260,      -- one heal row, in pixels
+	barH = 28,
+	test = false,    -- run the rows on a made-up countdown so the layout can be judged
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -215,15 +218,17 @@ function ns.InitDB()
 		if p[k] == nil then p[k] = v end
 	end
 	-- The sound the game plays when a heal lands is the one feature on this client that works end
-	-- to end, and it was shipped switched off, which made the addon look like it did nothing. It
-	-- is turned on once, and stays wherever you put it afterwards.
-	if not p.soundsDefaulted then
-		p.soundsDefaulted = true
-		if (p.sndApplied or 0) == 0 then
-			for i, c in ipairs(ns.SOUNDS or {}) do
-				if c[4] then p.sndApplied = i break end
-			end
-		end
+	-- to end, and it was shipped switched off, which made the addon look like it did nothing.
+	--
+	-- It was then switched on by taking the first entry that had a sound file, which is the one
+	-- labelled Explosion, so a heal landing set off a detonation. Anyone who was given that is
+	-- moved to the quieter cue once; a sound chosen deliberately is never touched.
+	p.soundsDefaulted = true -- retired key, kept so an old profile is not defaulted twice
+	if not p.soundsChosen then
+		p.soundsChosen = true
+		local wanted = ns.SoundIndex("Ready check") or ns.SoundIndex("Level up")
+		local explosion = ns.SoundIndex("Explosion")
+		if wanted and ((p.sndApplied or 0) == 0 or p.sndApplied == explosion) then p.sndApplied = wanted end
 	end
 	ns.db, ns.p, ns.charKey = TaplineDB, p, key
 	return p
@@ -741,6 +746,34 @@ end
 -- ------------------------------------------------------------------
 -- Played by this addon. Fine out of combat and fine in combat, since it is worked out from health
 -- and mana rather than from an aura.
+-- The list is looked up by name rather than by number anywhere a default is chosen: the numbers
+-- are only stable because entries are appended, and picking one by position is how a heal came to
+-- be announced with an explosion.
+function ns.SoundIndex(name)
+	for i, c in ipairs(ns.SOUNDS or {}) do
+		if c[1] == name then return i end
+	end
+end
+
+-- Plays every sound the game can be asked for in a fight, one after another, saying which is
+-- which. The names here were written from memory against file ids and only two have ever been
+-- confirmed by ear, so this is how the rest get their real names.
+function ns.SoundTry()
+	local list = {}
+	for i, c in ipairs(ns.SOUNDS or {}) do
+		if c[4] then list[#list + 1] = i end
+	end
+	ns.Print(("Playing the %d sounds the game can make in combat, one every two seconds. Tell me which number sounded like what and I will fix the names."):format(#list))
+	for slot, index in ipairs(list) do
+		local c = ns.SOUNDS[index]
+		local function play()
+			ns.Print(("  %d: called %s here"):format(index, c[1]))
+			ns.PlaySound(index)
+		end
+		if C_Timer and C_Timer.After then C_Timer.After((slot - 1) * 2, play) else play() end
+	end
+end
+
 function ns.PlaySound(n)
 	local c = ns.SOUNDS[n or 0]
 	if not c then return nil, false end

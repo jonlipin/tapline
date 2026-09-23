@@ -150,7 +150,11 @@ end
 function ns.Usage()
 	local p = ns.Profile() or {}
 	Print("v" .. ns.VERSION .. ", commands:")
-	Print("  /tapline - show or hide the readout")
+	Print("  /tapline - open the options window")
+	Print("  /tapline show - show or hide the readout")
+	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
+	Print("  /tapline width <120-480> | height <14-56> - the size of one heal bar")
+	Print("  /tapline sound try - play every sound the game can make in a fight, in order")
 	Print("  /tapline bars - show or hide the heal bars the game draws")
 	Print(("  /tapline reserve <percent> - health to keep back after a tap (now %s)"):format(tostring(p.reserve)))
 	Print(("  /tapline mana <percent> - only speak up below this much mana (now %s)"):format(tostring(p.manaAt)))
@@ -171,12 +175,31 @@ local function Command(msg)
 	sub = string.lower(sub or "")
 	local n = tonumber(tail)
 
-	if sub == "" then
+	if sub == "" or sub == "options" or sub == "config" then
+		if ns.Options then
+			Print(ns.Options:Toggle() and "Options open." or "Options closed.")
+			return
+		end
 		p.shown = not p.shown
 		ns.Panel:Refresh(GetTime())
 		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif sub == "help" then
 		ns.Usage()
+	elseif sub == "test" then
+		p.test = not p.test
+		if p.test then p.bars = true ns.Panel:BuildBars() end
+		ns.Panel:Refresh(GetTime())
+		if ns.Options then ns.Options:Refresh() end
+		Print(p.test and "Preview on: the bars run on a made-up timer so the layout can be judged." or "Preview off.")
+	elseif sub == "show" then
+		p.shown = not p.shown
+		ns.Panel:Refresh(GetTime())
+		Print("Readout " .. (p.shown and "shown." or "hidden."))
+	elseif (sub == "width" or sub == "height") and n then
+		if sub == "width" then p.barW = max(120, min(480, n)) else p.barH = max(14, min(56, n)) end
+		ns.Panel:BuildBars()
+		ns.Panel:Refresh(GetTime())
+		Print(("Bars are %d by %d."):format(p.barW, p.barH))
 	elseif sub == "bars" then
 		p.bars = not (p.bars ~= false)
 		if p.bars then ns.Panel:BuildBars() end
@@ -217,6 +240,7 @@ local function Command(msg)
 		local which, value = tail:match("^(%S*)%s*(%S*)$")
 		which = string.lower(which or "")
 		local v = tonumber(value)
+		if which == "try" then ns.SoundTry() return end
 		local keys = { applied = "sndApplied", lapsed = "sndLapsed", estimate = "sndEstimate", ready = "sndReady" }
 		if which == "" or not keys[which] or not v then
 			SoundList()
