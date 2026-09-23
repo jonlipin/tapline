@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.3.1"
+ns.VERSION = "1.3.2"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -198,6 +198,7 @@ local DEFAULTS = {
 	barW = 260,      -- one heal row, in pixels
 	barH = 28,
 	test = false,    -- run the rows on a made-up countdown so the layout can be judged
+	plain = false,   -- skip the copied art entirely, to take it out of the question
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -244,7 +245,7 @@ local S = {
 	ticks = {},
 	hot = {},
 	own = {},
-	stats = { driver = 0, samples = 0, gains = 0, small = 0, mine = 0, refills = 0, heals = 0, runs = 0, awake = 0 },
+	stats = { driver = 0, refresh = 0, barRefresh = 0, samples = 0, gains = 0, small = 0, mine = 0, refills = 0, heals = 0, runs = 0, awake = 0 },
 }
 ns.state = S
 
@@ -803,6 +804,61 @@ function ns.ClearStaleSounds()
 	end
 end
 
+-- Which sound files this client will actually accept.
+--
+-- The file ids in Data.lua were written from memory, and the game does not complain about a bad
+-- one: AddAuraSound simply hands back nothing. Choosing one that it silently refuses turns every
+-- alert off without a word, which is exactly what happened when the default was moved off the
+-- explosion. So each file is offered once at login against a real spell id and taken straight back
+-- out again, and only the ones the game accepted are ever used.
+function ns.ProbeSoundFiles()
+	local C = C_UnitAuras
+	if not (C and C.AddAuraSound and C.RemoveAuraSound) then return end
+	local trig = (Enum and Enum.UnitAuraSoundTrigger and Enum.UnitAuraSoundTrigger.Added) or 0
+	local probeSpell
+	for _, row in ipairs(ns.HOTS or {}) do
+		local ids = ns.Ranks(row.name)
+		if ids then for id in pairs(ids) do probeSpell = id break end end
+		if probeSpell then break end
+	end
+	if not probeSpell then return end
+	local good, bad = 0, 0
+	for _, c in ipairs(ns.SOUNDS or {}) do
+		if c[4] then
+			local ok, regId = pcall(C.AddAuraSound, trig,
+				{ unitToken = "player", spellID = probeSpell, soundFileID = c[4], outputChannel = "Master" })
+			if ok and regId then
+				c.valid = true
+				good = good + 1
+				pcall(C.RemoveAuraSound, regId)
+			else
+				c.valid = false
+				bad = bad + 1
+			end
+		end
+	end
+	ns.soundProbe = ("%d of %d sound files accepted, %d refused"):format(good, good + bad, bad)
+	ns.report["sound files"] = ns.soundProbe
+	-- A choice the game will not take is no alert at all, so it is moved to one it will.
+	local p = Profile()
+	if p then
+		for _, key in ipairs({ "sndApplied", "sndLapsed" }) do
+			local c = ns.SOUNDS[p[key] or 0]
+			if c and c[4] and c.valid == false then
+				local swap
+				for i, other in ipairs(ns.SOUNDS) do
+					if other.valid then swap = i break end
+				end
+				if swap then
+					ns.Print(("The game will not take %s as an alert, so %s is using %s instead. /tapline sound to change it."):format(
+						c[1], key == "sndApplied" and "the heal alert" or "the ran-out alert", ns.SOUNDS[swap][1]))
+					p[key] = swap
+				end
+			end
+		end
+	end
+end
+
 function ns.SyncSounds()
 	local C = C_UnitAuras
 	local p = Profile()
@@ -880,6 +936,7 @@ local function Startup()
 		C_Timer.After(2, function()
 			for _, row in ipairs(ns.HOTS or {}) do ns.Ranks(row.name) end
 			ns.Ranks("Life Tap")
+			ns.ProbeSoundFiles()
 			ns.SyncSounds()
 			if ns.Panel then ns.Panel:BuildBars() end
 		end)

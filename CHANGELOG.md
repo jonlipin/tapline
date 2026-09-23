@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.2
+
+- **Fixed: every alert had gone silent.** The report showed "0 handed to the game, 60 refused". The file ids in the list were written from memory, and the game does not complain about a bad one: `AddAuraSound` simply hands back nothing. So moving the default off the explosion moved it onto a file this client will not take, and turned all sound off without a word. Each file is now offered once at login against a real spell and taken straight back out, only the accepted ones are ever used, and a choice the game refuses is swapped for one it accepts with a line saying so.
+- `/tapline debug` now reports **where the frames actually are**: shown, visible, how many anchors, position, size, alpha and scale, for the readout, the bars holder, the container, every row and every slot, plus how many times the refresh has reached each. Everything the report said about the bars was "built fine", which is true and useless when nothing is on screen; building a row and putting it somewhere visible are different problems.
+- `/tapline plain` turns the copied art off entirely and rebuilds, so the Cooldown Manager look can be ruled in or out in one command.
+
+Also read out of the last report, with thanks to the client for finally being specific: Life Tap on this build converts **30 health into 87 mana** at rank 1 and **69 into 126** at rank 2, and this character knows those two. The written-down vanilla numbers were wrong for this server, which is exactly why the cost is read out of the spell's own description first.
+
 ## 1.3.1
 
 - **Fixed: 1.3.0 stopped showing bars for Renew and the rest.** Dressing a row in the Cooldown Manager's art was done while the row was being built, and it was not walled off, so one refused call took the whole row down with it. Worse, the pieces were being made on a frame of ours placed inside the game's slot rather than on the slot itself, and the slot will only draw regions that are its own. Between them, a heal landing on you produced nothing at all.

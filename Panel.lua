@@ -169,6 +169,7 @@ function Panel:Place()
 end
 
 function Panel:Refresh(now)
+	ns.state.stats.refresh = (ns.state.stats.refresh or 0) + 1
 	local p, f = ns.Profile(), self.frame
 	if not p or not f then return end
 	if not p.shown then f:Hide() if self.bars then self.bars:Hide() end return end
@@ -315,6 +316,8 @@ local function Adorn(frame, w, h)
 	parts.count = count
 
 	-- Now the client's own art, if it will part with it, and never at the cost of the row.
+	local p = ns.Profile()
+	if p and p.plain then ns.report["bar art"] = "off, by /tapline plain" return parts end
 	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time) end)
 	if not ok then
 		ns.report["bar art"] = "refused: " .. tostring(applied):gsub("^.-%.lua:%d+:%s*", "")
@@ -507,6 +510,7 @@ function Panel:BuildBars()
 end
 
 function Panel:RefreshBars(now)
+	ns.state.stats.barRefresh = (ns.state.stats.barRefresh or 0) + 1
 	local p = ns.Profile()
 	if not p or not self.bars then return end
 	self.bars:SetShown(p.shown and p.bars ~= false)

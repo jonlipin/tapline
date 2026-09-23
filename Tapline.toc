@@ -2,7 +2,7 @@
 ## Title: Tapline
 ## Notes: Should this health become mana? A readout of your health, mana, what a Life Tap costs, and whether anything is healing you.|n|cffcc66ff/tapline|r for the rest.
 ## Author: Jon
-## Version: 1.3.1
+## Version: 1.3.2
 ## LoadSavedVariablesFirst: 1
 ## SavedVariables: TaplineDB
 ## IconTexture: Interface\Icons\Spell_Shadow_BurningSpirit

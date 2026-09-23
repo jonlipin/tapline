@@ -64,6 +64,45 @@ function ns.Probe()
 				bar and ("found, value " .. Describe(function() return bar:GetValue() end)) or "|cffff5050missing|r"))
 		end
 	end
+	-- Where the frames actually are. Everything above can report success while nothing is on
+	-- screen, because building a row and putting it somewhere visible are different problems, and
+	-- guessing which one has gone wrong has already cost two rounds.
+	local function Where(label, f)
+		if not f then Print(("    %-14s |cffff5050does not exist|r"):format(label)) return end
+		local okS, isShown = pcall(function() return f:IsShown() end)
+		local okV, isVis = pcall(function() return f:IsVisible() end)
+		local okR, l, t, w, h = pcall(function() return f:GetLeft(), f:GetTop(), f:GetWidth(), f:GetHeight() end)
+		local okP, points = pcall(function() return f:GetNumPoints() end)
+		local okA, alpha = pcall(function() return f.GetEffectiveAlpha and f:GetEffectiveAlpha() or f:GetAlpha() end)
+		local okC, scale = pcall(function() return f:GetEffectiveScale() end)
+		Print(("    %-14s shown %s, visible %s, anchors %s, at %s,%s size %sx%s, alpha %s, scale %s"):format(
+			label,
+			okS and tostring(isShown) or "?", okV and tostring(isVis) or "?",
+			okP and tostring(points) or "?",
+			okR and tostring(Clean(l) and floor(Clean(l)) or l) or "?",
+			okR and tostring(Clean(t) and floor(Clean(t)) or t) or "?",
+			okR and tostring(Clean(w) and floor(Clean(w)) or w) or "?",
+			okR and tostring(Clean(h) and floor(Clean(h)) or h) or "?",
+			okA and tostring(alpha) or "?", okC and tostring(scale) or "?"))
+	end
+	Print("  where the frames actually are:")
+	Where("readout", ns.Panel and ns.Panel.frame)
+	Where("bars holder", ns.Panel and ns.Panel.bars)
+	Where("container", ns.Panel and ns.Panel.container)
+	for i, cell in ipairs((ns.Panel and ns.Panel.cells) or {}) do
+		Where("cell " .. i, cell)
+		Where("  its bar", cell.bar)
+		Where("  its icon", cell.icon)
+	end
+	local slots = ns.Panel and ns.Panel.container and rawget(ns.Panel.container, "slots")
+	if type(slots) == "table" then
+		for key, slot in pairs(slots) do
+			-- The slot frame is forbidden, so even asking where it is has to be guarded.
+			Where("slot " .. tostring(key), slot.frame)
+		end
+	end
+	Print(("    refreshes: panel %d, bars %d"):format(ns.state.stats.refresh or 0, ns.state.stats.barRefresh or 0))
+
 	if next(ns.slotCalls or {}) then
 		Print("  what the game let us hand to a slot:")
 		for method, result in pairs(ns.slotCalls) do
@@ -153,6 +192,7 @@ function ns.Usage()
 	Print("  /tapline - open the options window")
 	Print("  /tapline show - show or hide the readout")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
+	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
 	Print("  /tapline width <120-480> | height <14-56> - the size of one heal bar")
 	Print("  /tapline sound try - play every sound the game can make in a fight, in order")
 	Print("  /tapline bars - show or hide the heal bars the game draws")
@@ -185,6 +225,13 @@ local function Command(msg)
 		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif sub == "help" then
 		ns.Usage()
+	elseif sub == "plain" then
+		p.plain = not p.plain
+		ns.Panel.barKey, ns.Panel.container, ns.Panel.cells = nil, nil, nil
+		if ns.Panel.bars then ns.Panel.bars:Hide() ns.Panel.bars = nil end
+		ns.Panel:BuildBars()
+		ns.Panel:Refresh(GetTime())
+		Print(p.plain and "Art off: plain bars, nothing copied from the client." or "Art on: the bars wear the Cooldown Manager look again.")
 	elseif sub == "test" then
 		p.test = not p.test
 		if p.test then p.bars = true ns.Panel:BuildBars() end
