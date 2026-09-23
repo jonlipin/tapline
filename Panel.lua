@@ -266,59 +266,83 @@ function Panel:BarSize()
 	return w, h
 end
 
--- The icon, the bar and the two fontstrings that make one row, dressed in the client's own art.
-local function BuildRow(parent, w, h)
-	local row = CreateFrame("Frame", nil, parent)
-	row:SetSize(w, h)
+-- The pieces of one row, built straight onto the frame that will own them.
+--
+-- Straight onto it, with no frame of ours in between, because the slot the game fills is a
+-- forbidden object and the regions it is handed have to be its own. A version that put them on an
+-- intermediate frame looked identical offline and showed nothing at all in game.
+--
+-- The art goes on afterwards and inside a pcall of its own. Making the plate look like the
+-- Cooldown Manager is worth doing, and it is worth exactly nothing if a refused call takes the bar
+-- down with it: the worst this can do now is leave a plain bar that works.
+local function Adorn(frame, w, h)
+	local parts = {}
 
-	local icon = row:CreateTexture(nil, "ARTWORK")
+	local icon = frame:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(h, h)
-	icon:SetPoint("LEFT")
+	icon:SetPoint("LEFT", frame, "LEFT", 0, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+	parts.icon = icon
 
-	local bar = CreateFrame("StatusBar", nil, row)
+	local bar = CreateFrame("StatusBar", nil, frame)
 	bar:SetSize(max(8, w - h - 4), h)
-	bar:SetPoint("LEFT", row, "LEFT", h + 4, 0)
+	bar:SetPoint("LEFT", frame, "LEFT", h + 4, 0)
 	bar:SetMinMaxValues(0, 1)
 	bar:SetValue(1)
-	ns.Skin:Dress(bar, h, icon)
+	bar:SetStatusBarTexture(BAR_TEXTURE)
+	bar:SetStatusBarColor(0.96, 0.55, 0.16)
+	local plate = bar:CreateTexture(nil, "BACKGROUND", nil, -8)
+	plate:SetAllPoints(bar)
+	plate:SetColorTexture(0, 0, 0, 0.85)
+	parts.bar = bar
 
-	local nameFont, nameSize, nameFlags = ns.SkinFont("nameFont", h)
+	local size = max(9, floor(h * 0.42))
 	local name = bar:CreateFontString(nil, "OVERLAY")
-	name:SetFont(nameFont, nameSize, nameFlags)
+	name:SetFont(FONT, size, "OUTLINE")
 	name:SetPoint("LEFT", bar, "LEFT", floor(h * 0.25), 0)
 	name:SetJustifyH("LEFT")
+	parts.name = name
 
-	local timeFont, timeSize, timeFlags = ns.SkinFont("durFont", h)
 	local time = bar:CreateFontString(nil, "OVERLAY")
-	time:SetFont(timeFont, timeSize, timeFlags)
+	time:SetFont(FONT, size, "OUTLINE")
 	time:SetPoint("RIGHT", bar, "RIGHT", -floor(h * 0.25), 0)
 	time:SetJustifyH("RIGHT")
+	parts.time = time
 
 	local count = bar:CreateFontString(nil, "OVERLAY")
-	count:SetFont(timeFont, max(8, floor(timeSize * 0.8)), timeFlags)
+	count:SetFont(FONT, max(8, floor(size * 0.8)), "OUTLINE")
 	count:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", -1, 1)
+	parts.count = count
 
-	row.icon, row.bar, row.name, row.time, row.count = icon, bar, name, time, count
-	return row
+	-- Now the client's own art, if it will part with it, and never at the cost of the row.
+	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time) end)
+	if not ok then
+		ns.report["bar art"] = "refused: " .. tostring(applied):gsub("^.-%.lua:%d+:%s*", "")
+	elseif applied then
+		-- Only when the art actually went on. A refusal inside has already written its own reason,
+		-- and overwriting it with the name of the skin we wanted hides exactly what went wrong.
+		ns.report["bar art"] = ns.Skin.source or "applied"
+	end
+	return parts
 end
 
 -- What the game is handed for one heal. It owns when these are shown and what they say.
 local function InitSlot(row)
 	return function(button)
 		if not button then return end
-		pcall(function()
-			local w, h = Panel:BarSize()
-			local made = BuildRow(button, w, h)
-			made:SetAllPoints(button)
-			button.tlRow = made
-			Hand(button, "SetIcon", made.icon)
-			Hand(button, "SetDurationBar", made.bar)
-			Hand(button, "SetDurationText", made.time)
-			if button.SetSpellName then Hand(button, "SetSpellName", made.name)
-			else Hand(button, "SetNameText", made.name) end
-			Hand(button, "SetApplicationCount", made.count)
-		end)
+		local w, h = Panel:BarSize()
+		-- Building the regions is one guarded step, since they are made on the game's own frame and
+		-- a refusal there leaves nothing to hand over. Each handover is then guarded separately.
+		local ok, parts = pcall(Adorn, button, w, h)
+		ns.slotCalls["build the row"] = ok and "ok" or tostring(parts):gsub("^.-%.lua:%d+:%s*", "")
+		if not ok or type(parts) ~= "table" then return end
+		button.tlParts = parts
+		Hand(button, "SetIcon", parts.icon)
+		Hand(button, "SetDurationBar", parts.bar)
+		Hand(button, "SetDurationText", parts.time)
+		if button.SetSpellName then Hand(button, "SetSpellName", parts.name)
+		else Hand(button, "SetNameText", parts.name) end
+		Hand(button, "SetApplicationCount", parts.count)
 	end
 end
 
@@ -326,8 +350,11 @@ end
 -- countdown while you are previewing the layout.
 local function Cell(parent, row, index)
 	local w, h = Panel:BarSize()
-	local cell = BuildRow(parent, w, h)
+	local cell = CreateFrame("Frame", nil, parent)
+	cell:SetSize(w, h)
 	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * (h + 4))
+	local parts = Adorn(cell, w, h)
+	cell.icon, cell.bar, cell.name, cell.time, cell.count = parts.icon, parts.bar, parts.name, parts.time, parts.count
 
 	-- By id, not by name. Asking for "Renew" by name gets a warlock nothing, because the client
 	-- answers that question out of your own spellbook; any resolved rank carries the icon.
@@ -422,8 +449,14 @@ function Panel:BuildBars()
 	if not self.cells then
 		self.cells = {}
 		for i, row in ipairs(ns.HOTS or {}) do
-			self.cells[i] = Cell(holder, row, i)
-			self.cells[i].testOffset = i * 3
+			-- One row that will not build must not cost the others, nor the slots under them.
+			local okCell, made = pcall(Cell, holder, row, i)
+			if okCell and made then
+				made.testOffset = i * 3
+				self.cells[i] = made
+			else
+				ns.report["row " .. row.name] = "refused: " .. tostring(made)
+			end
 		end
 	end
 	self.barSize = w .. "x" .. h

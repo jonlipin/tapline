@@ -121,6 +121,16 @@ end
 function Skin:Build()
 	if self.ready then return self end
 	self.ready = true
+	-- Nothing in here may throw. It is called while a row is being made, and a row that fails to
+	-- be made is a heal you never see land on you, which is worse than a plain looking bar.
+	local ok, err = pcall(self.Reckon, self)
+	if not ok then
+		ns.report["bar skin"] = "could not be read off the client: " .. tostring(err):gsub("^.-%.lua:%d+:%s*", "")
+	end
+	return self
+end
+
+function Skin:Reckon()
 	self.source = "hand made"
 	self.fillColor = { 0.96, 0.55, 0.16 }
 	self.barTexture = PLAIN_BAR
@@ -218,8 +228,14 @@ end
 
 -- Dresses one StatusBar and, if given, its icon. Everything is guarded: a piece the client would
 -- not describe is simply left out rather than taking the bar down with it.
-function Skin:Dress(bar, height, icon)
+function Skin:Dress(bar, height, icon, name, time)
 	self:Build()
+	local okAll, whyNot = pcall(self.Apply, self, bar, height, icon, name, time)
+	if not okAll then ns.report["bar art"] = "refused: " .. tostring(whyNot):gsub("^.-%.lua:%d+:%s*", "") end
+	return okAll
+end
+
+function Skin:Apply(bar, height, icon, name, time)
 	local tex = bar:GetStatusBarTexture()
 	if self.barAtlas and tex and tex.SetAtlas then
 		pcall(tex.SetAtlas, tex, self.barAtlas)
@@ -243,7 +259,7 @@ function Skin:Dress(bar, height, icon)
 	for i, d in ipairs(self.pieces) do
 		local t = bar.tlArt[i] or bar:CreateTexture(nil, "ARTWORK", nil, (d.t or 0) > 0 and 1 or -1)
 		bar.tlArt[i] = t
-		if d.atlas and t.SetAtlas then t:SetAtlas(d.atlas) elseif d.file then t:SetTexture(d.file) end
+		if d.atlas and t.SetAtlas then pcall(t.SetAtlas, t, d.atlas) elseif d.file then pcall(t.SetTexture, t, d.file) end
 		if d.coords then t:SetTexCoord(d.coords[1], d.coords[2], d.coords[3], d.coords[4]) end
 		if d.color then t:SetVertexColor(d.color[1], d.color[2], d.color[3], d.color[4] or 1) end
 		if d.blend then pcall(t.SetBlendMode, t, d.blend) end
@@ -256,7 +272,8 @@ function Skin:Dress(bar, height, icon)
 		-- Nothing to copy, so a frame of our own in the same spirit: a thin warm line round a dark
 		-- plate, which is what the manager's bars read as from a distance.
 		if not bar.tlEdge then
-			local edge = CreateFrame("Frame", nil, bar, "BackdropTemplate")
+			local okE, edge = pcall(CreateFrame, "Frame", nil, bar, "BackdropTemplate")
+			if not okE then edge = nil end
 			if edge.SetBackdrop then
 				edge:SetPoint("TOPLEFT", -2, 2)
 				edge:SetPoint("BOTTOMRIGHT", 2, -2)
@@ -269,8 +286,8 @@ function Skin:Dress(bar, height, icon)
 
 	if icon then
 		if self.iconMask and icon.AddMaskTexture and not icon.tlMask then
-			local m = bar:GetParent():CreateMaskTexture()
-			if m.SetAtlas and pcall(m.SetAtlas, m, self.iconMask) then
+			local okM, m = pcall(function() return bar:GetParent():CreateMaskTexture() end)
+			if okM and m and m.SetAtlas and pcall(m.SetAtlas, m, self.iconMask) then
 				-- A mask atlas here is bigger than the shape it carries, so it is drawn larger than
 				-- what it clips or it eats the edges of the picture.
 				m:SetPoint("TOPLEFT", icon, "TOPLEFT", -height * 0.13, height * 0.13)
@@ -280,7 +297,9 @@ function Skin:Dress(bar, height, icon)
 			end
 		end
 		if not icon.tlOverlay then
-			local o = bar:GetParent():CreateTexture(nil, "OVERLAY")
+			local okO, o = pcall(function() return bar:GetParent():CreateTexture(nil, "OVERLAY") end)
+			if not okO then o = nil end
+			if o then
 			-- Measured off the manager: the overlay is not square, reaching further across than down.
 			if o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay") then
 				local w, h = 0.200, 0.175
@@ -290,9 +309,16 @@ function Skin:Dress(bar, height, icon)
 			else
 				o:Hide()
 			end
+			end
 		end
 	end
-	return bar
+	-- The fonts the manager uses, once there is art to size them against.
+	if name and time then
+		local f1, s1, g1 = ns.SkinFont("nameFont", height)
+		pcall(name.SetFont, name, f1, s1, g1)
+		local f2, s2, g2 = ns.SkinFont("durFont", height)
+		pcall(time.SetFont, time, f2, s2, g2)
+	end
 end
 
 -- The manager writes its times as "6 s" and "1 m". Matched, so a Tapline bar beside one does not

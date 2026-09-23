@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.1
+
+- **Fixed: 1.3.0 stopped showing bars for Renew and the rest.** Dressing a row in the Cooldown Manager's art was done while the row was being built, and it was not walled off, so one refused call took the whole row down with it. Worse, the pieces were being made on a frame of ours placed inside the game's slot rather than on the slot itself, and the slot will only draw regions that are its own. Between them, a heal landing on you produced nothing at all.
+- The pieces are made straight onto the frame that owns them again, which is what worked before 1.3.0. The art goes on afterwards, inside its own guard, so the worst it can do now is leave a plain bar that works. The skin cannot throw at all any more: a bad atlas name, a missing template or a refused mask is reported and stepped over.
+- One row that will not build no longer costs the others, or the slots under them.
+- `/tapline debug` gained a "bar art" line saying whether the manager's look went on, and if not, in whose words it was refused. A refusal inside the skin is no longer overwritten by the name of the skin we were hoping for.
+
+### And the reason it got past me
+
+The offline harness passed 105 checks on the broken build, because its stub let regions be created anywhere and never refused anything. It now records which frame made each region, can be told to refuse children the way a forbidden frame does, and carries three checks that fail on the 1.3.0 code: that a slot's regions belong to the slot, that a refused skin still leaves a working row, and that one bad row does not stop the rest.
+
 ## 1.3.0
 
 - **The explosion is gone.** The alert was switched on by taking the first entry in the list that had a sound file behind it, and that entry is the one called Explosion, so every heal landing on you set off a detonation. The default is a quieter cue now, anyone who was handed the explosion is moved off it once, and a sound chosen on purpose is never touched. The list is looked up by name rather than by position, which is what caused this.
