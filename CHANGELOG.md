@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.4.0
+
+- **The options live in the game's own options window now**, under AddOns, as a canvas category: Blizzard hosts a frame and Tapline draws it. `/tapline` opens it there. If the game will not open its panel, which on this client it sometimes will not, the same page appears in a window of Tapline's own instead, and the report says which happened.
+
+That is deliberately only half of the settings API. The other half, registering proxy settings so Blizzard stores the values, is what put this addon's mark on Blizzard's own code here once before and had the nameplates throwing "attempt to compare a secret number value". None of it is used: every value is read from and written to Tapline's own saved settings, and Blizzard is only lending the page a home. The tests assert that no proxy setting is ever registered.
+
+### What is on the page
+
+- **Bar width**, **bar height** and **icon size**, the icon set as a share of the bar's height so it stays in proportion. The bar takes whatever room the icon gives up.
+- **Bar opacity**, **background opacity** and **border opacity** as separate sliders, so the rows can be solid over a box that is barely there, or the other way about.
+- **Scale**, and a **health to keep back** slider.
+- Tickboxes for the heal bars, the readout, the preview, and plain bars.
+- **An alert on/off tickbox** that does not forget which sound was chosen, and a picker for the heal-landed and ran-out sounds. Files this client refuses are greyed out and cannot be chosen at all.
+- Buttons for resetting the layout, playing every sound in turn, and printing the self report.
+
+### Underneath
+
+- Changing a size rebuilds the rows, because a slot the game has placed cannot be resized afterwards. Changing a colour or an opacity does not: that would throw away the game's slots for the sake of a tint. A rebuild asked for during a fight waits and happens the moment it ends.
+
 ## 1.3.2
 
 - **Fixed: every alert had gone silent.** The report showed "0 handed to the game, 60 refused". The file ids in the list were written from memory, and the game does not complain about a bad one: `AddAuraSound` simply hands back nothing. So moving the default off the explosion moved it onto a file this client will not take, and turned all sound off without a word. Each file is now offered once at login against a real spell and taken straight back out, only the accepted ones are ever used, and a choice the game refuses is swapped for one it accepts with a line saying so.

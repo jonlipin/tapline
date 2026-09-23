@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.3.2"
+ns.VERSION = "1.4.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -199,6 +199,11 @@ local DEFAULTS = {
 	barH = 28,
 	test = false,    -- run the rows on a made-up countdown so the layout can be judged
 	plain = false,   -- skip the copied art entirely, to take it out of the question
+	iconScale = 1,   -- the icon, as a share of the bar's height
+	barAlpha = 1,    -- how solid the rows are
+	bgAlpha = 0.9,   -- the box behind them
+	borderAlpha = 1,
+	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -868,11 +873,13 @@ function ns.SyncSounds()
 	end
 	local trig = (Enum and Enum.UnitAuraSoundTrigger) or {}
 	local triggers = { applied = trig.Added or 0, removed = trig.Removed or 2 }
-	local picks = { applied = p.sndApplied, removed = p.sndLapsed }
+	-- Turned off without forgetting which was chosen, so it comes back as it was.
+	local picks = (p.soundOn == false) and {} or { applied = p.sndApplied, removed = p.sndLapsed }
 	local wanted = {}
 	for ev, trigger in pairs(triggers) do
 		local choice = ns.SOUNDS[picks[ev] or 0]
-		local file = choice and choice[4]
+		-- A file this client has already refused is not worth registering thirty times over.
+		local file = choice and choice.valid ~= false and choice[4]
 		if file then
 			for _, row in ipairs(ns.HOTS or {}) do
 				local ids = ns.Ranks(row.name)
@@ -942,6 +949,9 @@ local function Startup()
 		end)
 		-- And then write the report, to the log alone. Started fresh each time, so what is on disk
 		-- is always this session and never a mixture of this one and the last.
+		C_Timer.After(3, function()
+			if ns.Options and ns.Options.RegisterBlizzard then pcall(ns.Options.RegisterBlizzard, ns.Options) end
+		end)
 		C_Timer.After(4, function() ns.AutoReport() end)
 	end
 end
@@ -975,7 +985,9 @@ function ns.OnEvent(event, a1, _, a3)
 		-- would only argue with the aura that can now be read.
 		S.hot, S.ticks = {}, {}
 		ns.Sample(GetTime())
-		if event == "PLAYER_REGEN_ENABLED" and ns.Panel then ns.Panel:BuildBars() end
+		if event == "PLAYER_REGEN_ENABLED" and ns.Panel then
+			if ns.Panel.rebuildWanted then ns.Panel:Rebuild() else ns.Panel:BuildBars() end
+		end
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		S.hot, S.ticks = {}, {}
 		S.hp, S.hpMax = nil, nil

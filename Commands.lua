@@ -189,7 +189,7 @@ end
 function ns.Usage()
 	local p = ns.Profile() or {}
 	Print("v" .. ns.VERSION .. ", commands:")
-	Print("  /tapline - open the options window")
+	Print("  /tapline - open the options page, in the game's own options window where it will")
 	Print("  /tapline show - show or hide the readout")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
@@ -227,10 +227,7 @@ local function Command(msg)
 		ns.Usage()
 	elseif sub == "plain" then
 		p.plain = not p.plain
-		ns.Panel.barKey, ns.Panel.container, ns.Panel.cells = nil, nil, nil
-		if ns.Panel.bars then ns.Panel.bars:Hide() ns.Panel.bars = nil end
-		ns.Panel:BuildBars()
-		ns.Panel:Refresh(GetTime())
+		ns.Panel:Rebuild()
 		Print(p.plain and "Art off: plain bars, nothing copied from the client." or "Art on: the bars wear the Cooldown Manager look again.")
 	elseif sub == "test" then
 		p.test = not p.test
@@ -244,8 +241,7 @@ local function Command(msg)
 		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif (sub == "width" or sub == "height") and n then
 		if sub == "width" then p.barW = max(120, min(480, n)) else p.barH = max(14, min(56, n)) end
-		ns.Panel:BuildBars()
-		ns.Panel:Refresh(GetTime())
+		ns.Panel:Rebuild()
 		Print(("Bars are %d by %d."):format(p.barW, p.barH))
 	elseif sub == "bars" then
 		p.bars = not (p.bars ~= false)

@@ -145,6 +145,33 @@ function Panel:Build()
 	return f
 end
 
+-- The box behind the rows, and how solid everything is. Kept apart from building them, so a
+-- change of colour never costs a rebuild of the slots the game owns.
+function Panel:Restyle()
+	local p, holder = ns.Profile(), self.bars
+	if not p or not holder then return end
+	holder:SetAlpha(tonumber(p.barAlpha) or 1)
+	if holder.SetBackdropColor then
+		pcall(holder.SetBackdropColor, holder, 0.05, 0.03, 0.02, tonumber(p.bgAlpha) or 0.9)
+		pcall(holder.SetBackdropBorderColor, holder, 0.6, 0.5, 0.35, tonumber(p.borderAlpha) or 1)
+	end
+end
+
+-- A size or an icon changed, so the rows have to be made again: a slot the game has placed
+-- cannot be resized afterwards.
+function Panel:Rebuild()
+	if InCombatLockdown and InCombatLockdown() then
+		self.rebuildWanted = true
+		return false
+	end
+	self.rebuildWanted = nil
+	self.barKey, self.container, self.cells = nil, nil, nil
+	if self.bars then self.bars:Hide() self.bars = nil end
+	self:BuildBars()
+	self:Refresh(GetTime())
+	return true
+end
+
 function Panel:Place()
 	local f, p = self.frame, ns.Profile()
 	if not f or not p then return end
@@ -165,6 +192,7 @@ function Panel:Place()
 			bars:SetPoint("TOPLEFT", f, "BOTTOMLEFT", 0, -6)
 		end
 		bars:SetScale(p.scale or 1)
+		self:Restyle()
 	end
 end
 
@@ -279,15 +307,17 @@ end
 local function Adorn(frame, w, h)
 	local parts = {}
 
+	local p0 = ns.Profile() or {}
+	local iconSize = max(8, floor(h * (tonumber(p0.iconScale) or 1)))
 	local icon = frame:CreateTexture(nil, "ARTWORK")
-	icon:SetSize(h, h)
+	icon:SetSize(iconSize, iconSize)
 	icon:SetPoint("LEFT", frame, "LEFT", 0, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	parts.icon = icon
 
 	local bar = CreateFrame("StatusBar", nil, frame)
-	bar:SetSize(max(8, w - h - 4), h)
-	bar:SetPoint("LEFT", frame, "LEFT", h + 4, 0)
+	bar:SetSize(max(8, w - iconSize - 4), h)
+	bar:SetPoint("LEFT", frame, "LEFT", iconSize + 4, 0)
 	bar:SetMinMaxValues(0, 1)
 	bar:SetValue(1)
 	bar:SetStatusBarTexture(BAR_TEXTURE)
