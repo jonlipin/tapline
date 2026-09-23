@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11.2
+
+- **Fixed: the options page ran off the bottom of the panel with no way to reach the rest.** It is taller than anything that hosts it, so it scrolls now, by the mouse wheel and nothing else. A scrollbar wants a template, templates are not on disk on this client, and a missing one would take the whole page down with it; the wheel needs nothing and cannot fail.
+- The page measures its own height instead of being given one. A fixed height is a promise that stops being true the moment a control is added, and what it costs is the bottom of the page quietly falling off, which is exactly what happened.
+- `/tapline debug` reports how tall the page came out, so a page that has outgrown its panel says so rather than being noticed by eye.
+
 ## 1.11.1
 
 - **Fixed: the icon on the manager's own bar was never being found**, and that one miss was quietly breaking three things at once. The report said so plainly once it was asked the right questions: the mask and the shadow had both fallen back to asking for art by name rather than measuring it, and the icon's overlay was turning up in the list of **bar** art, flagged as a spark.

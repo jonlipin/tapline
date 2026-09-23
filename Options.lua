@@ -293,8 +293,49 @@ function Options:Content()
 	self:Button(c, left + 130, bottom, 120, "Play them all", function() ns.SoundTry() end)
 	self:Button(c, right, bottom, 120, "Self report", function() ns.Debug() end)
 
-	ns.report["options"] = "ok"
+	-- However tall it turned out. A fixed height is a promise that stops being true the moment a
+	-- control is added, and what it costs is the bottom of the page quietly falling off.
+	c:SetHeight(max(120, -bottom + 40))
+	self.contentHeight = c:GetHeight()
+	ns.report["options"] = ("ok, %d tall"):format(c:GetHeight())
 	return c
+end
+
+-- A window onto the page, since the page is taller than anything that hosts it.
+--
+-- Worked by the wheel and nothing else: a scrollbar wants a template, templates are not on disk
+-- here, and a missing one would take the whole page with it. The wheel needs nothing.
+function Options:Scroller(host)
+	if host.tlScroll then return host.tlScroll end
+	local scroll = CreateFrame("ScrollFrame", nil, host)
+	scroll:SetPoint("TOPLEFT", 0, 0)
+	scroll:SetPoint("BOTTOMRIGHT", -4, 0)
+	scroll:EnableMouseWheel(true)
+	scroll:SetScript("OnMouseWheel", function(self2, delta)
+		local page = Options.content
+		if not page then return end
+		local room = max(0, (page:GetHeight() or 0) - (self2:GetHeight() or 0))
+		local at = (self2:GetVerticalScroll() or 0) - (delta or 0) * 40
+		if at < 0 then at = 0 elseif at > room then at = room end
+		self2:SetVerticalScroll(at)
+	end)
+	host.tlScroll = scroll
+	return scroll
+end
+
+-- Puts the page inside a host, scrolling. The page can only be in one place at a time, so it is
+-- moved rather than built twice.
+function Options:PlaceIn(host)
+	local content = self:Content()
+	local scroll = self:Scroller(host)
+	content:SetParent(scroll)
+	content:ClearAllPoints()
+	content:SetPoint("TOPLEFT", 0, 0)
+	pcall(scroll.SetScrollChild, scroll, content)
+	pcall(scroll.SetVerticalScroll, scroll, 0)
+	content:Show()
+	scroll:Show()
+	return content
 end
 
 function Options:Refresh()
@@ -313,12 +354,8 @@ function Options:RegisterBlizzard()
 	self.category = false
 	local canvas = CreateFrame("Frame", "TaplineOptionsCanvas", UIParent)
 	canvas.name = "Tapline"
-	local content = self:Content()
-	content:SetParent(canvas)
-	content:ClearAllPoints()
-	content:SetPoint("TOPLEFT", canvas, "TOPLEFT", 0, 0)
-	content:Show()
 	self.canvas = canvas
+	self:PlaceIn(canvas)
 
 	if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
 		local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, canvas, "Tapline")
@@ -390,12 +427,7 @@ function Options:Window()
 		self.frame = f
 	end
 	if f:IsShown() then f:Hide() return false end
-	-- The page can only be in one place at a time, so it is borrowed back from the canvas.
-	local content = self:Content()
-	content:SetParent(f.Inset or f)
-	content:ClearAllPoints()
-	content:SetPoint("TOPLEFT", 4, -4)
-	content:Show()
+	self:PlaceIn(f.Inset or f)
 	self:Refresh()
 	f:Show()
 	return true
