@@ -130,6 +130,31 @@ function Panel:Build()
 	f.incoming:SetWidth(BAR_W)
 	f.incoming:SetJustifyH("LEFT")
 
+	-- A way to put it away without going looking for the options, since this window is the part
+	-- of the addon that can say least on this client and is the most likely to be in the way.
+	local okClose, close = pcall(CreateFrame, "Button", nil, f, "UIPanelCloseButton")
+	if okClose and close then
+		close:SetPoint("TOPRIGHT", 2, 2)
+		close:SetSize(22, 22)
+	else
+		close = CreateFrame("Button", nil, f)
+		close:SetPoint("TOPRIGHT", -4, -4)
+		close:SetSize(16, 16)
+		local x = close:CreateFontString(nil, "OVERLAY")
+		x:SetFont(FONT, 13, "OUTLINE")
+		x:SetPoint("CENTER")
+		x:SetText("x")
+		x:SetTextColor(0.9, 0.8, 0.6)
+	end
+	close:SetScript("OnClick", function()
+		local p = ns.Profile()
+		if p then p.shown = false end
+		Panel:Refresh(GetTime())
+		if ns.Options then ns.Options:Refresh() end
+		ns.Print("Readout hidden. /tapline show brings it back, or the tickbox in the options.")
+	end)
+	f.close = close
+
 	f:SetScript("OnEnter", function(self)
 		if not GameTooltip then return end
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -200,9 +225,11 @@ function Panel:Refresh(now)
 	ns.state.stats.refresh = (ns.state.stats.refresh or 0) + 1
 	local p, f = ns.Profile(), self.frame
 	if not p or not f then return end
-	if not p.shown then f:Hide() if self.bars then self.bars:Hide() end return end
-	f:Show()
+	-- The readout and the bars are put away separately. They used to share one switch, which
+	-- meant closing the window that can say least also took away the one thing that works.
 	self:RefreshBars(now or GetTime())
+	if not p.shown then f:Hide() return end
+	f:Show()
 
 	local S = ns.state
 	-- When this client will not say what your health is, the readout says so once, quietly, and
@@ -288,11 +315,38 @@ local function Hand(button, method, ...)
 	return ok
 end
 
-function Panel:BarSize()
+-- Everything about the shape of one row, worked out in one place so the cell, the slot the game
+-- draws over it and the box around them can never disagree about how much room the icon takes.
+--
+-- The icon is not just the picture. The frame drawn around it reaches past the artwork on every
+-- side, and by a share of the icon rather than a fixed number of pixels, so it reaches further
+-- the bigger the icon gets. A gap of a few pixels is fine at the default size and is run straight
+-- over at half again, which is the overlap this fixes: the gap grows with the icon, and the row
+-- grows tall enough to hold it so neighbouring rows are not run into either.
+-- Measured off the manager: the frame round an icon is not square, reaching further across than
+-- it does down. Both are shares of the icon, so both grow with it.
+local ICON_OVERHANG_X, ICON_OVERHANG_Y = 0.200, 0.175
+
+function Panel:RowMetrics()
 	local p = ns.Profile() or {}
 	local h = max(12, min(64, tonumber(p.barH) or 28))
 	local w = max(80, min(600, tonumber(p.barW) or 260))
-	return w, h
+	local iconSize = max(8, floor(h * (tonumber(p.iconScale) or 1) + 0.5))
+	local overhang = floor(iconSize * ICON_OVERHANG_X + 0.5)
+	local overhangY = floor(iconSize * ICON_OVERHANG_Y + 0.5)
+	local gap = overhang + 3
+	-- What the bar starts at: the icon, plus the frame art on both sides of it, plus the gap.
+	local barLeft = overhang + iconSize + gap
+	local barW = max(8, w - barLeft - overhang)
+	-- A row is as tall as the taller of the bar and the icon with its frame.
+	local rowH = max(h, iconSize + overhangY * 2)
+	return { w = w, h = h, iconSize = iconSize, overhang = overhang, overhangY = overhangY, gap = gap,
+		barLeft = barLeft, barW = barW, rowH = rowH, pitch = rowH + 4 }
+end
+
+function Panel:BarSize()
+	local m = self:RowMetrics()
+	return m.w, m.h
 end
 
 -- The pieces of one row, built straight onto the frame that will own them.
@@ -304,20 +358,20 @@ end
 -- The art goes on afterwards and inside a pcall of its own. Making the plate look like the
 -- Cooldown Manager is worth doing, and it is worth exactly nothing if a refused call takes the bar
 -- down with it: the worst this can do now is leave a plain bar that works.
-local function Adorn(frame, w, h)
+local function Adorn(frame, m)
 	local parts = {}
+	local h = m.h
 
-	local p0 = ns.Profile() or {}
-	local iconSize = max(8, floor(h * (tonumber(p0.iconScale) or 1)))
 	local icon = frame:CreateTexture(nil, "ARTWORK")
-	icon:SetSize(iconSize, iconSize)
-	icon:SetPoint("LEFT", frame, "LEFT", 0, 0)
+	icon:SetSize(m.iconSize, m.iconSize)
+	-- Inset by the frame art's reach, so the art stays inside the row rather than hanging off it.
+	icon:SetPoint("LEFT", frame, "LEFT", m.overhang, 0)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	parts.icon = icon
 
 	local bar = CreateFrame("StatusBar", nil, frame)
-	bar:SetSize(max(8, w - iconSize - 4), h)
-	bar:SetPoint("LEFT", frame, "LEFT", iconSize + 4, 0)
+	bar:SetSize(m.barW, h)
+	bar:SetPoint("LEFT", frame, "LEFT", m.barLeft, 0)
 	bar:SetMinMaxValues(0, 1)
 	bar:SetValue(1)
 	bar:SetStatusBarTexture(BAR_TEXTURE)
@@ -348,7 +402,7 @@ local function Adorn(frame, w, h)
 	-- Now the client's own art, if it will part with it, and never at the cost of the row.
 	local p = ns.Profile()
 	if p and p.plain then ns.report["bar art"] = "off, by /tapline plain" return parts end
-	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time) end)
+	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time, m.iconSize) end)
 	if not ok then
 		ns.report["bar art"] = "refused: " .. tostring(applied):gsub("^.-%.lua:%d+:%s*", "")
 	elseif applied then
@@ -363,10 +417,10 @@ end
 local function InitSlot(row)
 	return function(button)
 		if not button then return end
-		local w, h = Panel:BarSize()
+		local m = Panel:RowMetrics()
 		-- Building the regions is one guarded step, since they are made on the game's own frame and
 		-- a refusal there leaves nothing to hand over. Each handover is then guarded separately.
-		local ok, parts = pcall(Adorn, button, w, h)
+		local ok, parts = pcall(Adorn, button, m)
 		ns.slotCalls["build the row"] = ok and "ok" or tostring(parts):gsub("^.-%.lua:%d+:%s*", "")
 		if not ok or type(parts) ~= "table" then return end
 		button.tlParts = parts
@@ -382,11 +436,11 @@ end
 -- Our own row, under the game's. Dim and empty while nothing is on you, and running a made-up
 -- countdown while you are previewing the layout.
 local function Cell(parent, row, index)
-	local w, h = Panel:BarSize()
+	local m = Panel:RowMetrics()
 	local cell = CreateFrame("Frame", nil, parent)
-	cell:SetSize(w, h)
-	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * (h + 4))
-	local parts = Adorn(cell, w, h)
+	cell:SetSize(m.w, m.rowH)
+	cell:SetPoint("TOPLEFT", parent, "TOPLEFT", 6, -6 - (index - 1) * m.pitch)
+	local parts = Adorn(cell, m)
 	cell.icon, cell.bar, cell.name, cell.time, cell.count = parts.icon, parts.bar, parts.name, parts.time, parts.count
 
 	-- By id, not by name. Asking for "Renew" by name gets a warlock nothing, because the client
@@ -409,6 +463,8 @@ end
 function Panel:DressCell(cell, testing, now)
 	local w, h = self:BarSize()
 	if testing then
+		cell.name:SetAlpha(1)
+		cell.time:SetAlpha(1)
 		-- A preview that moves, so the layout can be judged without waiting on a healer. The clock
 		-- is the heal's own duration, so a test bar runs at the speed the real one will.
 		local period = (cell.row and cell.row.duration) or 15
@@ -424,8 +480,15 @@ function Panel:DressCell(cell, testing, now)
 		cell.bar:SetValue(0)
 		cell.time:SetText("")
 		cell.icon:SetDesaturated(true)
-		cell.icon:SetAlpha(0.35)
-		cell.bar:SetAlpha(0.45)
+		-- "Only what is on you" is drawn by drawing nothing: the row underneath goes to nothing
+		-- and the game's own row, which is the only thing that knows whether a heal is there,
+		-- is left to show itself. The row keeps its place so the slot above it keeps its place.
+		local p = ns.Profile() or {}
+		local ghost = p.onlyActive and 0 or 1
+		cell.icon:SetAlpha(0.35 * ghost)
+		cell.bar:SetAlpha(0.45 * ghost)
+		cell.name:SetAlpha(ghost)
+		cell.time:SetAlpha(ghost)
 		cell.name:SetTextColor(0.55, 0.53, 0.47)
 	end
 end
@@ -438,8 +501,9 @@ function Panel:BuildBars()
 	if not p or p.bars == false then return end
 	if InCombatLockdown and InCombatLockdown() then return end
 
-	local w, h = self:BarSize()
-	local key = ("%dx%d|"):format(w, h)
+	local m = self:RowMetrics()
+	local w, h = m.w, m.h
+	local key = ("%dx%dx%d|"):format(w, h, m.iconSize)
 	local any = false
 	for _, row in ipairs(ns.HOTS or {}) do
 		local ids = ns.Ranks(row.name)
@@ -456,7 +520,7 @@ function Panel:BuildBars()
 	end
 
 	-- The size changed, so the rows are rebuilt from scratch: a slot cannot be resized afterwards.
-	if self.bars and self.barSize ~= w .. "x" .. h then
+	if self.bars and self.barSize ~= key then
 		for _, cell in ipairs(self.cells or {}) do cell:Hide() end
 		self.cells = nil
 	end
@@ -478,7 +542,7 @@ function Panel:BuildBars()
 		holder:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
 		self.bars = holder
 	end
-	holder:SetSize(w + 12, #(ns.HOTS or {}) * (h + 4) + 8)
+	holder:SetSize(w + 12, #(ns.HOTS or {}) * m.pitch + 8)
 	if not self.cells then
 		self.cells = {}
 		for i, row in ipairs(ns.HOTS or {}) do
@@ -492,7 +556,7 @@ function Panel:BuildBars()
 			end
 		end
 	end
-	self.barSize = w .. "x" .. h
+	self.barSize = key
 	self:Place()
 
 	-- A container whose slots must change is thrown away and made again: the game gives no way to
@@ -536,14 +600,15 @@ function Panel:BuildBars()
 		end
 	end
 	self.barKey = key
-	ns.report["game-drawn bars"] = ("%d of %d slots, %dx%d"):format(made, #(ns.HOTS or {}), w, h)
+	ns.report["game-drawn bars"] = ("%d of %d slots, %dx%d, icon %d, gap %d"):format(
+		made, #(ns.HOTS or {}), w, h, m.iconSize, m.gap)
 end
 
 function Panel:RefreshBars(now)
 	ns.state.stats.barRefresh = (ns.state.stats.barRefresh or 0) + 1
 	local p = ns.Profile()
 	if not p or not self.bars then return end
-	self.bars:SetShown(p.shown and p.bars ~= false)
+	self.bars:SetShown(p.bars ~= false)
 	local testing = p.test and true or false
 	for _, cell in ipairs(self.cells or {}) do self:DressCell(cell, testing, now) end
 end

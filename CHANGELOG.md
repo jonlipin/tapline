@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.0
+
+- **Fixed: a bigger icon ran into the bar.** The frame drawn around an icon reaches past the picture on every side, and by a share of the icon rather than a fixed number of pixels, so it reaches further the further you push the size. A gap of four pixels was fine at the default and was simply run over at half again. The gap now grows with the icon, the icon is inset so its frame stays inside the row instead of hanging off the left, and the bar takes exactly the room that is left. The row also grows tall enough to hold a bigger icon, so rows stop running into each other as well.
+
+That frame art was being measured against the bar's height rather than the icon's, which is what let it reach across in the first place. It follows the icon now, and across and down separately, because it is not square: it reaches 0.200 of the icon sideways and 0.175 down.
+
+- **A close button on the Life Tap readout.** That window is the part of this addon that can say least on this client, so it should be easy to put away: click the X, or use the tickbox in the options, or `/tapline show`.
+- **Closing the readout no longer takes the heal bars with it.** They shared one switch, which meant putting away the window that knows nothing also took away the one thing that works. They are separate now.
+- **New: only show heals that are actually on you.** A tickbox in the options, or `/tapline only`. An empty row draws nothing at all and leaves the game's own row, which is the only thing here that knows whether a heal is there, to show itself. The row keeps its place so the game's slot above it keeps its place, and the preview still draws in this mode so a layout can still be judged.
+
 ## 1.4.0
 
 - **The options live in the game's own options window now**, under AddOns, as a canvas category: Blizzard hosts a frame and Tapline draws it. `/tapline` opens it there. If the game will not open its panel, which on this client it sometimes will not, the same page appears in a window of Tapline's own instead, and the report says which happened.

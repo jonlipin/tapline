@@ -228,14 +228,17 @@ end
 
 -- Dresses one StatusBar and, if given, its icon. Everything is guarded: a piece the client would
 -- not describe is simply left out rather than taking the bar down with it.
-function Skin:Dress(bar, height, icon, name, time)
+function Skin:Dress(bar, height, icon, name, time, iconSize)
 	self:Build()
-	local okAll, whyNot = pcall(self.Apply, self, bar, height, icon, name, time)
+	local okAll, whyNot = pcall(self.Apply, self, bar, height, icon, name, time, iconSize)
 	if not okAll then ns.report["bar art"] = "refused: " .. tostring(whyNot):gsub("^.-%.lua:%d+:%s*", "") end
 	return okAll
 end
 
-function Skin:Apply(bar, height, icon, name, time)
+function Skin:Apply(bar, height, icon, name, time, iconSize)
+	-- Measured against the icon, never against the bar: the art round a picture grows with the
+	-- picture, and sizing it off the bar is what let it reach across into the fill.
+	iconSize = iconSize or height
 	local tex = bar:GetStatusBarTexture()
 	if self.barAtlas and tex and tex.SetAtlas then
 		pcall(tex.SetAtlas, tex, self.barAtlas)
@@ -290,8 +293,8 @@ function Skin:Apply(bar, height, icon, name, time)
 			if okM and m and m.SetAtlas and pcall(m.SetAtlas, m, self.iconMask) then
 				-- A mask atlas here is bigger than the shape it carries, so it is drawn larger than
 				-- what it clips or it eats the edges of the picture.
-				m:SetPoint("TOPLEFT", icon, "TOPLEFT", -height * 0.13, height * 0.13)
-				m:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", height * 0.13, -height * 0.13)
+				m:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * 0.13, iconSize * 0.13)
+				m:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * 0.13, -iconSize * 0.13)
 				pcall(icon.AddMaskTexture, icon, m)
 				icon.tlMask = m
 			end
@@ -303,8 +306,8 @@ function Skin:Apply(bar, height, icon, name, time)
 			-- Measured off the manager: the overlay is not square, reaching further across than down.
 			if o.SetAtlas and pcall(o.SetAtlas, o, "UI-HUD-CoolDownManager-IconOverlay") then
 				local w, h = 0.200, 0.175
-				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -height * w, height * h)
-				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", height * w, -height * h)
+				o:SetPoint("TOPLEFT", icon, "TOPLEFT", -iconSize * w, iconSize * h)
+				o:SetPoint("BOTTOMRIGHT", icon, "BOTTOMRIGHT", iconSize * w, -iconSize * h)
 				icon.tlOverlay = o
 			else
 				o:Hide()

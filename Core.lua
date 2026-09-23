@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.4.0"
+ns.VERSION = "1.5.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -204,6 +204,7 @@ local DEFAULTS = {
 	bgAlpha = 0.9,   -- the box behind them
 	borderAlpha = 1,
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
+	onlyActive = false, -- draw nothing for a heal that is not on you, rather than an empty row
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS

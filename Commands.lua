@@ -190,7 +190,8 @@ function ns.Usage()
 	local p = ns.Profile() or {}
 	Print("v" .. ns.VERSION .. ", commands:")
 	Print("  /tapline - open the options page, in the game's own options window where it will")
-	Print("  /tapline show - show or hide the readout")
+	Print("  /tapline show - show or hide the Life Tap cost readout (it has a close button too)")
+	Print("  /tapline only - show only the heals that are actually on you")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
 	Print("  /tapline width <120-480> | height <14-56> - the size of one heal bar")
@@ -225,6 +226,12 @@ local function Command(msg)
 		Print("Readout " .. (p.shown and "shown." or "hidden."))
 	elseif sub == "help" then
 		ns.Usage()
+	elseif sub == "only" then
+		p.onlyActive = not p.onlyActive
+		ns.Panel:Refresh(GetTime())
+		if ns.Options then ns.Options:Refresh() end
+		Print(p.onlyActive and "Showing only the heals actually on you: an empty row draws nothing."
+			or "Showing a row for every heal, empty or not.")
 	elseif sub == "plain" then
 		p.plain = not p.plain
 		ns.Panel:Rebuild()

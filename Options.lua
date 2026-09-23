@@ -242,8 +242,10 @@ function Options:Content()
 	ry = self:Heading(c, right, ry, "What to show")
 	ry = self:Check(c, right, ry, "The heal bars", function() return P().bars ~= false end,
 		function(v) P().bars = v if v then ns.Panel:Rebuild() end ns.Panel:Refresh(GetTime()) end)
-	ry = self:Check(c, right, ry, "The readout above them", function() return P().shown end,
+	ry = self:Check(c, right, ry, "The Life Tap cost readout", function() return P().shown end,
 		function(v) P().shown = v ns.Panel:Refresh(GetTime()) end)
+	ry = self:Check(c, right, ry, "Only heals that are actually on you", function() return P().onlyActive end,
+		function(v) P().onlyActive = v ns.Panel:Refresh(GetTime()) end)
 	ry = self:Check(c, right, ry, "Preview: run the bars on a made-up timer", function() return P().test end,
 		function(v) P().test = v ns.Panel:Refresh(GetTime()) end)
 	ry = self:Check(c, right, ry, "Plain bars: skip the copied Cooldown Manager art", function() return P().plain end,
