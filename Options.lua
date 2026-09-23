@@ -259,6 +259,9 @@ function Options:Content()
 		function(v) P().minimap = v if ns.MinimapButton then ns.MinimapButton:Refresh() end end)
 	ry = self:Check(c, right, ry, "Preview: run the bars on a made-up timer", function() return P().test end,
 		function(v) P().test = v ns.Panel:Refresh(GetTime()) end)
+	ly = self:Slider(c, left, ly, "Spark size", 0.5, 4, 0.1,
+		function() return P().sparkScale or 1.6 end,
+		function(v) P().sparkScale = v ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "A spark at the end of the fill",
 		function() return P().spark ~= false end,
 		function(v) P().spark = v ns.Panel:Rebuild() end)

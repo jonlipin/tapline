@@ -388,7 +388,11 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 		end
 		if not bar.tlSpark then bar.tlSpark = bar:CreateTexture(nil, "OVERLAY", nil, 3) end
 		local spark = bar.tlSpark
-		local tall = max(6, floor(height * 1.15 + 0.5))
+		-- Blizzard's spark is drawn for a bar taller than these usually are, so at its own scale it
+		-- comes out a sliver. It is given a size of its own, and keeps its shape at any of them.
+		local scale = tonumber((ns.Profile() or {}).sparkScale) or 1.6
+		if scale < 0.5 then scale = 0.5 elseif scale > 4 then scale = 4 end
+		local tall = max(6, floor(height * 1.15 * scale + 0.5))
 		if picked and spark.SetAtlas and pcall(spark.SetAtlas, spark, picked) then
 			-- Its own proportions, scaled to this bar, so it is Blizzard's shape and not a rectangle.
 			local ratio = (type(info) == "table" and tonumber(info.width) and tonumber(info.height) and info.height > 0)
@@ -401,12 +405,23 @@ function Skin:Apply(bar, height, icon, name, time, iconSize)
 			pcall(spark.SetAtlas, spark, nil)
 			spark:SetColorTexture(1, 0.97, 0.88, 0.9)
 			pcall(spark.SetBlendMode, spark, "ADD")
-			spark:SetSize(max(3, floor(height * 0.18 + 0.5)), tall)
+			spark:SetSize(max(3, floor(height * 0.18 * scale + 0.5)), tall)
 			ns.report["bar spark"] = "drawn here: this client has none of the manager's spark art"
 		end
 		spark:ClearAllPoints()
 		spark:SetPoint("CENTER", bar:GetStatusBarTexture() or bar, "RIGHT", 0, 0)
-		spark:Show()
+		-- An empty bar has its fill squeezed to nothing at the left hand end, and the spark rides
+		-- the end of the fill, so on a row with no heal on it the spark sat against the left edge
+		-- looking like a mark on the plate. It belongs to a bar that is actually running.
+		local function follow(value)
+			if bar.tlSpark then bar.tlSpark:SetShown((tonumber(value) or 0) > 0.001) end
+		end
+		if not bar.tlSparkHooked then
+			bar.tlSparkHooked = true
+			pcall(bar.HookScript, bar, "OnValueChanged", function(_, value) follow(value) end)
+		end
+		local okV, current = pcall(bar.GetValue, bar)
+		follow(okV and current or 0)
 	else
 		if bar.tlSpark then bar.tlSpark:Hide() end
 		ns.report["bar spark"] = "off"

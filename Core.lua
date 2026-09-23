@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.10.3"
+ns.VERSION = "1.10.4"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -201,7 +201,8 @@ local DEFAULTS = {
 	borderAlpha = 1,
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
 	barBgAlpha = 0.85, -- the dark plate inside a bar, behind the fill
-	spark = true,    -- the bright sliver that rides the end of the fill
+	spark = true,    -- the bright mark that rides the end of the fill
+	sparkScale = 1.6, -- how big it is against the bar; the art is drawn for a taller bar than these
 	edge = "auto",   -- "always" draws a frame round the bar even when the client gave us one
 	rate = 30,       -- how many times a second the parts this addon draws are redrawn
 	gapExtra = 0,    -- room between the icon and the bar, on top of what the art needs

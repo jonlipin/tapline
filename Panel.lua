@@ -300,11 +300,12 @@ function Panel:DressCell(cell, testing, now)
 		cell.time:SetTextColor(1, 1, 1)
 	else
 		cell.bar:SetValue(0)
+		-- An empty bar has its fill squeezed to nothing at the left hand end, and the spark rides
+		-- the end of the fill, so it would sit against the left edge looking like a mark on the
+		-- plate. A spark belongs to a bar that is actually running.
+		if cell.bar.tlSpark then cell.bar.tlSpark:Hide() end
 		cell.time:SetText("")
 		cell.icon:SetDesaturated(true)
-		-- "Only what is on you" is drawn by drawing nothing: the row underneath goes to nothing
-		-- and the game's own row, which is the only thing that knows whether a heal is there,
-		-- is left to show itself. The row keeps its place so the slot above it keeps its place.
 		cell.icon:SetAlpha(0.35)
 		cell.bar:SetAlpha(0.45)
 		cell.name:SetAlpha(1)

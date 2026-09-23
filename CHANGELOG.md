@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.10.4
+
+- **Fixed: the spark sat on the left edge of every empty bar.** It rides the end of the fill, and an empty bar has its fill squeezed to nothing at the left hand end, so on a row with no heal on it the spark parked itself against the left edge and read as a mark on the plate. A spark belongs to a bar that is actually running, and it now follows the fill rather than merely being anchored to it: the bar tells it whenever its value changes, so this holds for the rows the game fills as well as the ones drawn here.
+- **The spark has a size of its own**, defaulting to a bit over half again. Blizzard's art is drawn for a taller bar than these usually are, so at its own scale it came out a sliver. It keeps the art's proportions at any size. The slider is "Spark size", or `/tapline sparksize`.
+
 ## 1.10.3
 
 - **The spark is Blizzard's own art again, not a coloured rectangle.** 1.10.2 drew one here because a copied texture that does not render is indistinguishable from no texture at all, and there was no way from inside the addon to tell them apart. There is: `C_Texture.GetAtlasInfo` answers outright whether this client has a given atlas. That settles the problem that had dogged the whole skin.
