@@ -1,57 +1,93 @@
 # Tapline
 
-Should this health become mana? A small readout for warlocks on the WoW: Forever client (Interface 16001).
+Bars showing the heals over time ticking on you, for the WoW: Forever client.
 
-Tapline shows your health and mana, what one Life Tap costs, how many taps your own floor leaves room for, and whether anything is healing you. It settles on one word: **TAP**, **tap ok**, **WAIT** or **no need**.
+Drawn by the game itself, so they keep working in combat, where this client hides aura data from addons completely.
 
-`/tapline` opens it. `/lifetap` works too.
+`/tapline` opens the options.
 
-## Whether anything is healing you
+## What it does
 
-This is the hard part, and Tapline answers it three ways. It always says which answer it is giving, because the three are not equally trustworthy.
+A row for each heal over time that can be on you: Renew, Rejuvenation, Regrowth, Riptide, Wild Growth. Each shows the spell's own icon, its name and a countdown, and appears only while that heal is actually running.
 
-- **read** — wherever the auras are legible, the heal over time is read straight off you and the time shown is the real one.
-- **estimated** — in combat this client hides aura data from addons completely: every read errors or comes back secret, the aura events carry secret tables, and the combat log is closed. So the health itself is watched instead. A gain that nothing you did accounts for is a tick, and two of them about three seconds apart is somebody healing you. It is marked with a `~`, because it is late by up to one tick, it cannot name the spell, and a tick landing in the same tenth of a second as a hit is lost in the arithmetic.
-- **drawn** — the bars under the readout are not Tapline's. Each one is a slot the **game** fills, handed the spell ids of every rank of one heal, and the game keeps it right through a fight. Tapline cannot read what it drew, and does not try. That is exactly why it is worth having: it is the one display here that cannot be wrong. Trust it when the three disagree.
+The game plays a sound the instant one lands on you, and another when one falls off, if you want them.
 
-## Sounds
+## Why the game draws them and not this addon
 
-`/tapline sound` lists them. Two of the four are not played by Tapline at all:
+On this client, whether an aura is on you is secret to addons in combat. Every read of one errors or comes back as a value an addon may hold but never look inside, the aura events carry secret tables, and the combat log is closed. So no addon here can tell you what is ticking on you. It is not a matter of trying harder.
 
-- **applied** and **lapsed** are handed to the game with `C_UnitAuras.AddAuraSound`, against every rank of every heal. The client plays them itself the instant a heal lands on you or falls off, in combat included. Nothing comes back to the addon, so the sound is the whole alert.
-- **estimate** and **ready** are Tapline's own: the tick clock noticing a heal the game never announced, and the readout turning to TAP. Both are worked out from health and mana rather than from an aura, so they still fire in a fight.
+What the game will do is draw it for you. Handed the spell ids of a heal, it will keep a bar right through a fight and fill it in from data the addon is not allowed to see. Tapline supplies the ids, the art and the position; the game supplies the truth. Nothing is read back, because nothing can be.
 
-Only the sounds with a file behind them can be handed to the game. Those are marked `(combat)` in the list.
+The same goes for the alert: it is registered with the game, and the game plays it. There is no callback, so the sound is the whole of the message.
 
-## Your own healing
+That means one honest limit. **Tapline cannot tell you anything about a heal, only show you.** It has no idea which of these bars is filled at any moment, and nothing it does can depend on that.
 
-Drain Life, Death Coil, bandages, healthstones and healing potions open a short window during which gains are put down to you rather than to a healer. Siphon Life and Demon Armor's regeneration are deliberately left out: they tick for far less than the smallest gain Tapline counts, so their size sorts them out without blinding the estimate for half a minute at a time.
+## Spell ids are learned, not assumed
 
-`/tapline tick <percent>` moves that floor if a low-rank heal is being missed, or if something of yours keeps tripping it.
+Forever has spells of its own: Riptide and Wild Growth are new here, as are Penance, Lava Burst, Mangle and others. Ids taken from any other version of the game are guesses, and the game must be given ids rather than names.
+
+So Tapline watches what lands on you. Any helpful aura whose name is one of the heals it cares about has its spell id remembered and announced, kept account wide, so whichever character was standing near a druid teaches the rest. A heal it has no id for is not drawn at all, rather than left as a row that can never fill.
+
+If one is missing and you would rather not wait, `/tapline learn` takes a spell id, or a spell link shift clicked into the chat box.
+
+## The look
+
+The bars wear the Cooldown Manager's own art, copied at runtime and **measured** rather than guessed at: the real fill, the frame, the spark, the icon's mask and the shadow round it, each stored as a share of the bar or icon it belongs to, so they keep their shape at any size. Where this client has not got a piece, one is made here instead, and `/tapline debug` says which you got for each.
+
+## Options
+
+`/tapline`, or Esc, Options, AddOns, Tapline. It is Tapline's own page hosted in the game's window rather than a Blizzard settings page, deliberately: registering settings the Blizzard way puts an addon's mark on Blizzard's own code on this client, and the game then starts refusing its own reads.
+
+| | |
+| --- | --- |
+| Bar width, bar height, icon size | the shape of a row |
+| Gap between icon and bar, gap between rows | spacing, both able to close to nothing |
+| Bar opacity, bar background opacity | the row itself |
+| Background opacity, border opacity | the box behind the rows |
+| Scale | all of it together |
+| Icon shadow depth, spark size | 0 to 4 layers, and how big the spark is |
+| Redraws a second | how often the preview is redrawn |
+| The heal bars, a button on the minimap | what to show |
+| Preview | run the bars on a made-up timer, to judge a layout without a healer |
+| A spark at the end of the fill | on or off |
+| Always draw a frame round the bar | when the copied art is not to taste |
+| Plain bars | skip the copied art entirely |
+| Make a noise when a heal lands | and which sound, for landing and for running out |
+
+The sound names are half guesswork against file ids, so press a number to hear it. Greyed out means this client refuses that file. `/tapline sound try` plays every one in turn.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
-| `/tapline` | show or hide the readout (`/lifetap` works too) |
-| `/tapline bars` | show or hide the heal bars the game draws |
-| `/tapline reserve <percent>` | health to keep back after a tap |
-| `/tapline mana <percent>` | only speak up below this much mana |
-| `/tapline tick <percent>` | smallest health gain counted as a healer's |
-| `/tapline cost <health>` \| `auto` | what one tap costs, if the client will not say |
-| `/tapline rank <1-6>` \| `auto` | which rank of Life Tap to reckon with |
-| `/tapline sound` | list the sounds, and set applied, lapsed, estimate or ready |
-| `/tapline scale <0.5-2>` | size of both displays |
-| `/tapline reset` | put both displays back in the middle |
+| `/tapline` | open the options page |
+| `/tapline learn <spell id or link>` | teach it a heal this client has that it cannot name |
+| `/tapline forget` | throw away every learned spell id |
+| `/tapline bars` | show or hide the heal bars |
+| `/tapline test` | run the bars on a made-up timer |
+| `/tapline width <120-480>` \| `height <14-56>` | the size of one row |
+| `/tapline gap <-40-40>` \| `rowgap <-20-30>` | room beside the icon, and between rows |
+| `/tapline spark` \| `sparksize <0.5-4>` | the mark at the end of the fill |
+| `/tapline shadow <0-4>` | how deep the shadow round an icon is |
+| `/tapline edge` | always draw a frame round the bar |
+| `/tapline plain` | turn the copied art off |
+| `/tapline barbg <0-1>` | how dark the plate inside a bar is |
+| `/tapline rate <5-60>` | how often the preview is redrawn |
+| `/tapline minimap` | show or hide the minimap button |
+| `/tapline sound` | list the sounds and set them |
 | `/tapline debug` | what this client actually let the addon read |
+| `/tapline reset` | put the bars back in the middle |
 
-Drag either display to move it. Positions, and everything else, are saved per character.
+Drag the bars to move them. Everything is saved per character; learned spell ids are shared by all of them.
 
 ## `/tapline debug`
 
-Send this with any report. It walks every call Tapline leans on and prints what each one did: whether the global exists, whether the call was refused and in whose words, whether the answer came back as a secret value. It leads with how many frames the tick has run for, because a display that never updates and a client that refuses to answer look exactly alike from the outside.
+Send this with anything that looks wrong. It walks every call the addon leans on and prints what each one did: missing, refused and in whose words, or answered with a secret value. It also says where every frame actually is, which art was copied and which was made here, and how many times the tick has run, because a display that never updates and a client that refuses to answer look identical from the outside.
+
+The whole report is written into `TaplineDB.log` a few seconds after every login, so it can be read off disk after a `/reload` without catching it in chat.
 
 ## Notes
 
-- The rank ids in `Data.lua` are written from memory and checked against the client at load. One that comes back under a different name is dropped, so a wrong guess costs the coverage of that rank and nothing else. `/tapline debug` says how many of each the client agreed with.
-- Aura slots take spell ids rather than a name, which is why the ranks matter: a heal cast on you by somebody else is invisible to the game's own display unless the rank they cast is in the list.
+- Built for the WoW: Forever client (Interface 16001).
+- The minimap button opens the options on a left click and hides the bars on a right click, and drags round the edge of the map.
+- Tapline once had a Life Tap readout, which is where the name comes from. It was removed: your own health and mana are secret to addons here too, so it could only ever show what a tap costs, which the spell tooltip already tells you.

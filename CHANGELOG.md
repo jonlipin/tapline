@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.13.0
+
+The first properly packaged release. No change to how anything behaves; the documentation caught up with the addon.
+
+- **The README was rewritten.** It still described the Life Tap cost readout, which was removed three versions ago, and predated the minimap button, the learned spell ids, the Cooldown Manager art and most of the options. It now says what the addon actually is: bars for the heals over time ticking on you, drawn by the game so they survive combat.
+- **Stale help text corrected.** `/tapline sound` was still offering a fourth sound that no longer has anything to play it, and `/tapline rate` still spoke of a readout that is gone. `/tapline cost` and `/tapline rank` now say plainly that they only affect a line in the self report.
+
 ## 1.12.2
 
 - **Fixed: Riptide and Wild Growth were being given up on before the client had a chance to answer.** Their ids were very likely right all along.
