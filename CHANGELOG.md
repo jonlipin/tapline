@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.13.1
+
+- **The documentation now says what the addon is for**, which it never did. Life Tap turns health into mana, and the question is never really whether you can afford the health; it is whether that health is coming back. A heal over time ticking on you answers it. That is the whole reason these bars exist, and the reason for the name, and it was missing from the README, the addon list and every description of it.
+- The tooltip line in the addon list says it too, rather than describing the bars without saying why anyone would want them.
+
 ## 1.13.0
 
 The first properly packaged release. No change to how anything behaves; the documentation caught up with the addon.

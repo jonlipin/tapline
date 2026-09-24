@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: Tapline
-## Notes: Should this health become mana? A readout of your health, mana, what a Life Tap costs, and whether anything is healing you.|n|cffcc66ff/tapline|r for the rest.
+## Notes: Bars for the heals over time ticking on you, so you know when it is safe to Life Tap. Drawn by the game, so they keep working in combat.|n|cffcc66ff/tapline|r for the options.
 ## Author: Jon
-## Version: 1.13.0
+## Version: 1.13.1
 ## LoadSavedVariablesFirst: 1
 ## SavedVariables: TaplineDB
 ## IconTexture: Interface\Icons\Spell_Shadow_BurningSpirit

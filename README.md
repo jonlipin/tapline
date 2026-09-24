@@ -1,16 +1,20 @@
 # Tapline
 
-Bars showing the heals over time ticking on you, for the WoW: Forever client.
+Bars showing the heals over time ticking on you, so a warlock knows when it is safe to Life Tap.
 
 Drawn by the game itself, so they keep working in combat, where this client hides aura data from addons completely.
 
 `/tapline` opens the options.
 
-## What it does
+## The point of it
+
+Life Tap turns your health into mana, and the question is never really whether you can afford the health. It is whether that health is coming back.
+
+A heal over time ticking on you answers it. If a Renew or a Rejuvenation is running, the cost is already being paid back and you can tap without thinking about it. If nothing is on you, the same tap is just health you do not get back, and the second or third one in a row is how a warlock dies to a pull that was going fine.
+
+That is all this addon is for. A row appears when a heal lands on you and counts down while it runs, sitting wherever you put it, so the answer is in the corner of your eye while you are casting. The sound is there for when you are not looking at all: a noise means a heal just landed, which means tap now.
 
 A row for each heal over time that can be on you: Renew, Rejuvenation, Regrowth, Riptide, Wild Growth. Each shows the spell's own icon, its name and a countdown, and appears only while that heal is actually running.
-
-The game plays a sound the instant one lands on you, and another when one falls off, if you want them.
 
 ## Why the game draws them and not this addon
 
@@ -90,4 +94,4 @@ The whole report is written into `TaplineDB.log` a few seconds after every login
 
 - Built for the WoW: Forever client (Interface 16001).
 - The minimap button opens the options on a left click and hides the bars on a right click, and drags round the edge of the map.
-- Tapline once had a Life Tap readout, which is where the name comes from. It was removed: your own health and mana are secret to addons here too, so it could only ever show what a tap costs, which the spell tooltip already tells you.
+- Tapline once had a Life Tap readout, which is where the name comes from, and it was removed. Your own health and mana are secret to addons on this client too, so it could never do the arithmetic it was meant for: it could only show what a tap costs, which the spell tooltip already tells you. Knowing whether a heal is on you turns out to be the half of the question that can still be answered, and the half worth answering.
