@@ -229,7 +229,7 @@ function Options:Content()
 	ly = self:Slider(c, left, ly, "Gap between rows", -20, 30, 1,
 		function() return P().rowGap or 4 end,
 		function(v) P().rowGap = v ns.Panel:Rebuild() end)
-	ly = self:Slider(c, left, ly, "Redraws a second", 5, 60, 1,
+	ly = self:Slider(c, left, ly, "Redraws a second", 10, 120, 5,
 		function() return P().rate or 30 end,
 		function(v) P().rate = v end)
 	ly = self:Slider(c, left, ly, "Bar opacity", 0.1, 1, 0.05,
@@ -265,6 +265,9 @@ function Options:Content()
 	ly = self:Slider(c, left, ly, "Spark size", 0.5, 4, 0.1,
 		function() return P().sparkScale or 1.6 end,
 		function(v) P().sparkScale = v ns.Panel:Rebuild() end)
+	ry = self:Check(c, right, ry, "Smooth the bars between the game's updates",
+		function() return P().smooth ~= false end,
+		function(v) P().smooth = v end)
 	ry = self:Check(c, right, ry, "A spark at the end of the fill",
 		function() return P().spark ~= false end,
 		function(v) P().spark = v ns.Panel:Rebuild() end)

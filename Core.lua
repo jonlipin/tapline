@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.13.2"
+ns.VERSION = "1.14.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -325,11 +325,12 @@ local DEFAULTS = {
 	borderAlpha = 1,
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
 	barBgAlpha = 0.85, -- the dark plate inside a bar, behind the fill
+	smooth = true,   -- carry a bar on between the game's own updates, which are not frequent
 	spark = true,    -- the bright mark that rides the end of the fill
 	shadowLayers = 2, -- how deep the icon shadow is; one is what the manager draws, two is how it reads
 	sparkScale = 2, -- how big it is against the bar; the art is drawn for a taller bar than these
 	edge = "always", -- a frame round the bar, drawn whatever the client offered; "auto" defers to it
-	rate = 30,       -- how many times a second the parts this addon draws are redrawn
+	rate = 60,       -- how many times a second the bars are brought up to date
 	gapExtra = 0,    -- room between the icon and the bar, on top of what the art needs
 	rowGap = 4,      -- room between one row and the next
 	minimap = true,
@@ -1150,7 +1151,7 @@ function ns.OnUpdate(elapsed)
 	-- which is not ours to set, so winding this up will not make those smoother.
 	local p = Profile()
 	local rate = (p and tonumber(p.rate)) or 30
-	if rate < 5 then rate = 5 elseif rate > 60 then rate = 60 end
+	if rate < 10 then rate = 10 elseif rate > 120 then rate = 120 end
 	if acc < (1 / rate) then return end
 	acc = 0
 	local now = GetTime()

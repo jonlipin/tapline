@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.14.0
+
+- **The heal bars are smooth now, not just the preview.**
+
+The bars are filled by the game, and it writes to them at its own pace, which is not a smooth one. Nothing in an addon can make it write more often, and "Redraws a second" never touched them: it governed what this addon draws, which until now meant the preview and nothing else. Saying that was honest and unhelpful.
+
+What can be done is watch how fast the game is draining a bar and keep it draining at that rate until the next real update arrives. That is the difference between a bar that steps and a bar that pours.
+
+It is kept careful. The game's next write corrects whatever was guessed, so a wrong guess lasts a fraction of a second and is never carried forward. Our own writes are marked so they are not timed as though they were the game's, which would let the rate run away. A jump far too large to be a countdown is read as a heal landing rather than a drain, so a new bar does not start by flying downwards. Nothing is carried for longer than a second, because a bar that has not been written to for a second has stopped, and guessing past that draws a heal that ended.
+
+A tickbox turns it off, or `/tapline smooth`.
+
+- **Redraws a second** now runs to 120 and starts at 60, and it means what it says: how often the bars are brought up to date.
+
 ## 1.13.2
 
 - **A frame round the bar is drawn by default**, and **the spark starts at twice the bar** rather than a bit over half again. Both were easy to miss at their old settings: the frame because it was a tickbox with no reason to go looking for it, and the spark because Blizzard's art is drawn for a taller bar than these usually are and comes out a sliver at its own scale. Characters that already exist are carried to both once, and anything chosen after that is left alone.

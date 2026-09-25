@@ -77,7 +77,7 @@ function Panel:Rebuild()
 		return false
 	end
 	self.rebuildWanted = nil
-	self.barKey, self.container, self.cells, self.plates = nil, nil, nil, nil
+	self.barKey, self.container, self.cells, self.plates, self.liveBars = nil, nil, nil, nil, nil
 	if self.bars then self.bars:Hide() self.bars = nil end
 	self:BuildBars()
 	self:Refresh(GetTime())
@@ -218,6 +218,11 @@ local function Adorn(frame, m, already)
 	Panel.plates = Panel.plates or {}
 	Panel.plates[#Panel.plates + 1] = plate
 	parts.bar = bar
+	-- Remembered, so the fill can be carried on between the game's updates. The rows the game
+	-- fills are the ones that need it, and they cannot be found any other way: the frame they
+	-- sit on is the game's and asking it anything is an error.
+	Panel.liveBars = Panel.liveBars or {}
+	Panel.liveBars[#Panel.liveBars + 1] = bar
 
 	local size = max(9, floor(h * 0.42))
 	local name = bar:CreateFontString(nil, "OVERLAY")
@@ -443,11 +448,45 @@ function Panel:BuildBars()
 		made, #rows, w, h, m.iconSize, m.gap)
 end
 
+-- Carrying a bar on between the game's updates.
+--
+-- The heal bars are filled by the game, and it writes to them at its own pace, which is not a
+-- smooth one. Nothing here can make it write more often. What it can do is watch how fast the
+-- fill is falling and keep it falling at that rate until the next real update arrives, which
+-- is the difference between a bar that steps and a bar that drains.
+--
+-- The game's next write corrects whatever this guessed, so a wrong guess lasts a fraction of a
+-- second and is never carried forward. Our own writes are marked, so they are not mistaken for
+-- the game's and used to work out the rate.
+function Panel:Smooth(now)
+	local p = ns.Profile()
+	if not p or p.smooth == false then return end
+	for _, bar in ipairs(self.liveBars or {}) do
+		local seen = bar.tlSeen
+		if seen and seen.rate and seen.rate > 0 then
+			local gone = now - seen.at
+			-- Only ever between two updates. Carrying on for longer than that means the bar has
+			-- stopped being updated at all, and guessing past that is how you draw a heal that
+			-- ended a second ago.
+			if gone > 0 and gone < 1 then
+				local predicted = seen.value - seen.rate * gone
+				if predicted < 0 then predicted = 0 end
+				if predicted < seen.value then
+					bar.tlOurs = true
+					pcall(bar.SetValue, bar, predicted)
+					bar.tlOurs = nil
+				end
+			end
+		end
+	end
+end
+
 function Panel:RefreshBars(now)
 	ns.state.stats.barRefresh = (ns.state.stats.barRefresh or 0) + 1
 	local p = ns.Profile()
 	if not p or not self.bars then return end
 	self.bars:SetShown(p.bars ~= false)
+	self:Smooth(now)
 	local testing = p.test and true or false
 	for _, cell in ipairs(self.cells or {}) do self:DressCell(cell, testing, now) end
 end

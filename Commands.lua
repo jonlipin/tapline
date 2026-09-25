@@ -197,7 +197,8 @@ function ns.Usage()
 	Print("  /tapline spark - the mark at the end of the fill, on or off")
 	Print("  /tapline sparksize <0.5-4> - how big it is against the bar")
 	Print("  /tapline shadow <0-4> - how deep the shadow round an icon is")
-	Print("  /tapline rate <5-60> - how often the preview is redrawn")
+	Print("  /tapline rate <10-120> - how often the bars are brought up to date")
+	Print("  /tapline smooth - carry a bar on between the game's own updates, on or off")
 	Print("  /tapline barbg <0-1> - how dark the plate inside a bar is")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
@@ -284,9 +285,13 @@ local function Command(msg)
 		ns.Panel:Restyle()
 		if ns.Options then ns.Options:Refresh() end
 		Print(("Bar background at %.2f."):format(p.barBgAlpha))
+	elseif sub == "smooth" then
+		p.smooth = not (p.smooth ~= false)
+		if ns.Options then ns.Options:Refresh() end
+		Print("Smoothing " .. (p.smooth and "on." or "off."))
 	elseif sub == "rate" and n then
-		p.rate = max(5, min(60, n))
-		Print(("Redrawing %d times a second. The heal bars themselves are filled by the game and animate at its pace, not this one."):format(p.rate))
+		p.rate = max(10, min(120, n))
+		Print(("Redrawing %d times a second."):format(p.rate))
 	elseif sub == "plain" then
 		p.plain = not p.plain
 		ns.Panel:Rebuild()

@@ -531,6 +531,20 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 		-- looking like a mark on the plate. It belongs to a bar that is actually running.
 		local function follow(value)
 			if bar.tlSpark then bar.tlSpark:SetShown((tonumber(value) or 0) > 0.001) end
+			-- The same watch says how fast the game is draining this bar, which is what lets it be
+			-- carried on smoothly between those updates. Our own writes are skipped: timing them
+			-- would be timing ourselves.
+			if bar.tlOurs then return end
+			local v, now = tonumber(value), GetTime()
+			if not v then bar.tlSeen = nil return end
+			local seen = bar.tlSeen
+			local rate
+			if seen and seen.at and now > seen.at and seen.value and v < seen.value then
+				rate = (seen.value - v) / (now - seen.at)
+				-- A jump far too big to be a countdown is a new heal landing, not a drain.
+				if rate > 2 then rate = nil end
+			end
+			bar.tlSeen = { value = v, at = now, rate = rate }
 		end
 		if not bar.tlSparkHooked then
 			bar.tlSparkHooked = true
