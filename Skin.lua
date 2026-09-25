@@ -440,14 +440,24 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 	-- been copied, which is far too coarse: the moment one stray texture was found the hand-made
 	-- frame stopped being drawn, and if that texture was not a frame the bar simply lost its edge.
 	-- Each part of the look is asked for separately now, and made by hand only where it is missing.
+	-- Whether a copied piece is the frame round the bar.
+	--
+	-- Geometry alone was not enough. The test was whether a piece reached past the bar, and the
+	-- manager's backing sits a pixel or two proud of it, which counted. So a bar that has a backing
+	-- and no frame at all was read as framed, the hand-made edge stopped being drawn, and the
+	-- border simply vanished. The art says what it is in its own name, so that is asked first.
+	local function LooksLikeFrame(d)
+		local name = tostring(d.atlas or d.file or "")
+		if name:find("Border") or name:find("Frame") or name:find("Edge") then return true end
+		if name:find("BG") or name:find("Background") or name:find("Backing") then return false end
+		-- Nothing to go on but the shape, then, and at a reach a backing will not manage.
+		return (d.l or 0) > 0.06 or (d.rr or 0) > 0.06 or (d.t or 0) > 0.06 or (d.b or 0) > 0.06
+	end
+
 	local hasFrame, hasPip = false, false
 	for _, d in ipairs(self.pieces) do
 		if d.pip then hasPip = true
-		-- A frame is a piece that reaches PAST what it frames. Anything sitting inside the bar is a
-		-- backing, and a backing is not an edge.
-		elseif (d.l or 0) > 0.01 or (d.rr or 0) > 0.01 or (d.t or 0) > 0.01 or (d.b or 0) > 0.01 then
-			hasFrame = true
-		end
+		elseif LooksLikeFrame(d) then hasFrame = true end
 	end
 	local forced = (ns.Profile() or {}).edge == "always"
 

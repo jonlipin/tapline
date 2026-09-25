@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.13.2
+
+- **A frame round the bar is drawn by default**, and **the spark starts at twice the bar** rather than a bit over half again. Both were easy to miss at their old settings: the frame because it was a tickbox with no reason to go looking for it, and the spark because Blizzard's art is drawn for a taller bar than these usually are and comes out a sliver at its own scale. Characters that already exist are carried to both once, and anything chosen after that is left alone.
+
+- **Fixed, separately: a backing was being mistaken for a frame.** The test for whether the client had given us a frame was whether a piece reached past the bar, and the manager's backing sits a pixel or two proud of it, which counted. So on a client that offers a backing and no frame at all, the copy was reported as framed and the hand-made frame stopped being drawn.
+
+  A piece says what it is in its own name, so that is asked first now: art named as a border or a frame is one, art named as a background is not, and only where the name settles nothing does the shape decide, at a reach a backing will not manage.
+
+  This was not what went wrong yesterday, which was simply the tickbox being off, but it would have bitten as soon as anyone turned that tickbox back to deferring to the client.
+
 ## 1.13.1
 
 - **The documentation now says what the addon is for**, which it never did. Life Tap turns health into mana, and the question is never really whether you can afford the health; it is whether that health is coming back. A heal over time ticking on you answers it. That is the whole reason these bars exist, and the reason for the name, and it was missing from the README, the addon list and every description of it.

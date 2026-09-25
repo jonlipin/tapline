@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.13.1"
+ns.VERSION = "1.13.2"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -327,8 +327,8 @@ local DEFAULTS = {
 	barBgAlpha = 0.85, -- the dark plate inside a bar, behind the fill
 	spark = true,    -- the bright mark that rides the end of the fill
 	shadowLayers = 2, -- how deep the icon shadow is; one is what the manager draws, two is how it reads
-	sparkScale = 1.6, -- how big it is against the bar; the art is drawn for a taller bar than these
-	edge = "auto",   -- "always" draws a frame round the bar even when the client gave us one
+	sparkScale = 2, -- how big it is against the bar; the art is drawn for a taller bar than these
+	edge = "always", -- a frame round the bar, drawn whatever the client offered; "auto" defers to it
 	rate = 30,       -- how many times a second the parts this addon draws are redrawn
 	gapExtra = 0,    -- room between the icon and the bar, on top of what the art needs
 	rowGap = 4,      -- room between one row and the next
@@ -360,6 +360,14 @@ function ns.InitDB()
 	-- labelled Explosion, so a heal landing set off a detonation. Anyone who was given that is
 	-- moved to the quieter cue once; a sound chosen deliberately is never touched.
 	p.soundsDefaulted = true -- retired key, kept so an old profile is not defaulted twice
+	-- The frame and the spark were both easy to miss at their old settings: the frame because it
+	-- was a tickbox nobody had reason to find, the spark because Blizzard art drawn for a taller
+	-- bar comes out a sliver on these. Carried to the better settings once, and left alone after.
+	if not p.lookChosen then
+		p.lookChosen = true
+		p.edge = "always"
+		if (tonumber(p.sparkScale) or 0) <= 1.6 then p.sparkScale = 2 end
+	end
 	if not p.soundsChosen then
 		p.soundsChosen = true
 		local wanted = ns.SoundIndex("Ready check") or ns.SoundIndex("Level up")
