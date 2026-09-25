@@ -1,0 +1,5 @@
+package-as: Tapline
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
