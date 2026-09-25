@@ -547,6 +547,9 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 			spark:SetSize(max(3, floor(height * 0.18 * scale + 0.5)), tall)
 			ns.report["bar spark"] = "drawn here: this client has none of the manager's spark art"
 		end
+		-- Where the spark rests when it is not being placed by hand: on the end of the fill, which
+		-- is right but only moves when the fill does. Panel:Glide takes it over from here.
+		bar.tlSparkGliding = nil
 		spark:ClearAllPoints()
 		spark:SetPoint("CENTER", bar:GetStatusBarTexture() or bar, "RIGHT", 0, 0)
 		-- An empty bar has its fill squeezed to nothing at the left hand end, and the spark rides
@@ -562,6 +565,7 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 			if not v then bar.tlSeen = nil return end
 			local seen = bar.tlSeen
 			local rate
+			if seen and seen.value and v > seen.value + 0.001 then bar.tlSparkPos = nil end
 			if seen and seen.at and now > seen.at and seen.value and v < seen.value then
 				rate = (seen.value - v) / (now - seen.at)
 				-- A jump far too big to be a countdown is a new heal landing, not a drain.

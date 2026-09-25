@@ -268,6 +268,9 @@ function Options:Content()
 	ry = self:Check(c, right, ry, "Smooth the bars between the game's updates",
 		function() return P().smooth ~= false end,
 		function(v) P().smooth = v end)
+	ry = self:Check(c, right, ry, "Glide the spark over the game's updates",
+		function() return P().sparkGlide ~= false end,
+		function(v) P().sparkGlide = v end)
 	ry = self:Check(c, right, ry, "A spark at the end of the fill",
 		function() return P().spark ~= false end,
 		function(v) P().spark = v ns.Panel:Rebuild() end)

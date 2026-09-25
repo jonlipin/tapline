@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.15.0
+
+- **The spark glides now, instead of stepping with the fill it sits on.**
+
+  The spark rides the end of the fill, which means it can only move when the fill moves, and the fill moves when the game writes to it. 1.14.0 made those writes carry on smoothly in between, which helped, but every write the game does is also a correction, and the spark is the part of the bar the eye actually follows, so it is where a correction shows.
+
+  It is given a place of its own now. It is drawn from the same running guess the fill is drawn from, so the two cannot drift apart, and it eases over the corrections rather than jumping to them. The result glides whether or not the fill underneath it is stepping.
+
+  It is not allowed to invent its own progress: what it eases towards is the countdown the game last wrote, carried on at the rate the game itself has been draining it. A gap too big to be a countdown is a heal landing or the row being handed to another heal, and it is put there at once rather than sailing up the bar. A row with nothing running on it has no spark to place.
+
+  A tickbox turns it off, or `/tapline glide`, and the spark goes back to riding the fill.
+
+- The README had not caught up with 1.14.0: **Redraws a second** governs the bars, not just the preview, and it runs 10 to 120. `/tapline smooth` was missing from it entirely.
+
 ## 1.14.1
 
 - **The frame round the bar no longer depends on the client offering a backdrop template.** Where that template is missing the frame was simply not drawn, and since 1.13.2 made the frame the default that would have meant a bar with nothing round it and no way to tell why. It is drawn with four plain lines instead in that case, which needs nothing but a texture. The report says which of the two was used.

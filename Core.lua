@@ -326,6 +326,7 @@ local DEFAULTS = {
 	soundOn = true,  -- the alerts the game plays, on or off without forgetting the choice
 	barBgAlpha = 0.85, -- the dark plate inside a bar, behind the fill
 	smooth = true,   -- carry a bar on between the game's own updates, which are not frequent
+	sparkGlide = true, -- give the spark a place of its own rather than letting it ride the fill
 	spark = true,    -- the bright mark that rides the end of the fill
 	shadowLayers = 2, -- how deep the icon shadow is; one is what the manager draws, two is how it reads
 	sparkScale = 2, -- how big it is against the bar; the art is drawn for a taller bar than these

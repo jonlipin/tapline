@@ -481,12 +481,73 @@ function Panel:Smooth(now)
 	end
 end
 
+-- Gliding the spark.
+--
+-- The spark sits on the end of the fill, so it can only move when the fill moves, and the
+-- fill moves when the game says so. Smoothing the fill helps, but the fill is also corrected
+-- every time the game writes, and the spark is the part of the bar the eye follows, so it is
+-- the part where a correction shows. Given a place of its own it can be drawn from the same
+-- running guess and eased over those corrections, and it then glides whether or not the fill
+-- underneath it is stepping.
+--
+-- It is never allowed to invent its own progress: what it is easing towards is the countdown
+-- the game last wrote, carried forward at the rate the game itself has been draining it.
+function Panel:Glide(now)
+	local p = ns.Profile()
+	if not p then return end
+	local want = p.spark ~= false and p.sparkGlide ~= false
+	for _, bar in ipairs(self.liveBars or {}) do
+		local spark = bar.tlSpark
+		if spark and not want and bar.tlSparkGliding then
+			-- Put it back on the end of the fill and leave it there.
+			bar.tlSparkGliding, bar.tlSparkPos = nil, nil
+			spark:ClearAllPoints()
+			spark:SetPoint("CENTER", bar:GetStatusBarTexture() or bar, "RIGHT", 0, 0)
+		elseif spark and want and spark:IsShown() then
+			local seen = bar.tlSeen
+			local width = bar:GetWidth() or 0
+			if seen and seen.value and width > 1 then
+				local okM, lo, hi = pcall(bar.GetMinMaxValues, bar)
+				lo, hi = tonumber(okM and lo) or 0, tonumber(okM and hi) or 0
+				if hi > lo then
+					-- The same guess the fill is drawn from, so the two cannot drift apart.
+					local value = seen.value
+					if seen.rate and seen.rate > 0 and p.smooth ~= false then
+						local gone = now - seen.at
+						if gone > 0 and gone < 1 then value = value - seen.rate * gone end
+					end
+					local target = (value - lo) / (hi - lo)
+					if target < 0 then target = 0 elseif target > 1 then target = 1 end
+					local at = bar.tlSparkPos
+					-- A big gap is a heal landing or a bar being handed to another heal, not a
+					-- countdown, and easing across that would draw the spark sailing up the bar.
+					if not at or math.abs(target - at) > 0.12 then
+						at = target
+					else
+						-- Enough of the way there each frame to keep up with the countdown and still
+						-- round off the corrections, and it lands exactly rather than creeping.
+						local step = (now - (bar.tlSparkAt or now)) / 0.09
+						if step > 1 then step = 1 elseif step < 0 then step = 0 end
+						at = at + (target - at) * step
+						if math.abs(target - at) < 0.0005 then at = target end
+					end
+					bar.tlSparkPos, bar.tlSparkAt = at, now
+					bar.tlSparkGliding = true
+					spark:ClearAllPoints()
+					spark:SetPoint("CENTER", bar, "LEFT", at * width, 0)
+				end
+			end
+		end
+	end
+end
+
 function Panel:RefreshBars(now)
 	ns.state.stats.barRefresh = (ns.state.stats.barRefresh or 0) + 1
 	local p = ns.Profile()
 	if not p or not self.bars then return end
 	self.bars:SetShown(p.bars ~= false)
 	self:Smooth(now)
+	self:Glide(now)
 	local testing = p.test and true or false
 	for _, cell in ipairs(self.cells or {}) do self:DressCell(cell, testing, now) end
 end

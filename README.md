@@ -50,10 +50,12 @@ The bars wear the Cooldown Manager's own art, copied at runtime and **measured**
 | Background opacity, border opacity | the box behind the rows |
 | Scale | all of it together |
 | Icon shadow depth, spark size | 0 to 4 layers, and how big the spark is |
-| Redraws a second | how often the preview is redrawn |
+| Redraws a second | how often the bars are brought up to date |
 | The heal bars, a button on the minimap | what to show |
 | Preview | run the bars on a made-up timer, to judge a layout without a healer |
 | A spark at the end of the fill | on or off |
+| Smooth the bars between the game's updates | keep a fill falling between the game's writes |
+| Glide the spark over the game's updates | and let the spark ride a guess of its own |
 | Always draw a frame round the bar | when the copied art is not to taste |
 | Plain bars | skip the copied art entirely |
 | Make a noise when a heal lands | and which sound, for landing and for running out |
@@ -76,7 +78,8 @@ The sound names are half guesswork against file ids, so press a number to hear i
 | `/tapline edge` | always draw a frame round the bar |
 | `/tapline plain` | turn the copied art off |
 | `/tapline barbg <0-1>` | how dark the plate inside a bar is |
-| `/tapline rate <5-60>` | how often the preview is redrawn |
+| `/tapline rate <10-120>` | how often the bars are brought up to date |
+| `/tapline smooth` \| `glide` | carry the fill on between the game's writes, and the spark with it |
 | `/tapline minimap` | show or hide the minimap button |
 | `/tapline sound` | list the sounds and set them |
 | `/tapline debug` | what this client actually let the addon read |

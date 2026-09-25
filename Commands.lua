@@ -199,6 +199,7 @@ function ns.Usage()
 	Print("  /tapline shadow <0-4> - how deep the shadow round an icon is")
 	Print("  /tapline rate <10-120> - how often the bars are brought up to date")
 	Print("  /tapline smooth - carry a bar on between the game's own updates, on or off")
+	Print("  /tapline glide - let the spark glide over those updates, on or off")
 	Print("  /tapline barbg <0-1> - how dark the plate inside a bar is")
 	Print("  /tapline test - run the bars on a made-up timer, to judge the layout")
 	Print("  /tapline plain - turn the copied art off, to see whether it is what is in the way")
@@ -285,6 +286,11 @@ local function Command(msg)
 		ns.Panel:Restyle()
 		if ns.Options then ns.Options:Refresh() end
 		Print(("Bar background at %.2f."):format(p.barBgAlpha))
+	elseif sub == "glide" then
+		p.sparkGlide = not (p.sparkGlide ~= false)
+		if ns.Options then ns.Options:Refresh() end
+		ns.Panel:Restyle()
+		Print("Spark glide " .. (p.sparkGlide and "on." or "off."))
 	elseif sub == "smooth" then
 		p.smooth = not (p.smooth ~= false)
 		if ns.Options then ns.Options:Refresh() end
