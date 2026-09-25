@@ -36,7 +36,7 @@ If one is missing and you would rather not wait, `/tapline learn` takes a spell 
 
 ## The look
 
-The bars wear the Cooldown Manager's own art, copied at runtime and **measured** rather than guessed at: the real fill, the frame, the spark, the icon's mask and the shadow round it, each stored as a share of the bar or icon it belongs to, so they keep their shape at any size. Where this client has not got a piece, one is made here instead, and `/tapline debug` says which you got for each.
+The bars wear the Cooldown Manager's own art, copied at runtime and **measured** rather than guessed at: the real fill, the frame, the spark, the icon's mask and the shadow around it, each stored as a share of the bar or icon it belongs to, so they keep their shape at any size. Where this client has not got a piece, one is made here instead, and `/tapline debug` says which you got for each.
 
 ## Options
 
@@ -56,11 +56,11 @@ The bars wear the Cooldown Manager's own art, copied at runtime and **measured**
 | A spark at the end of the fill | on or off |
 | Smooth the bars between the game's updates | keep a fill falling between the game's writes |
 | Glide the spark over the game's updates | and let the spark ride a guess of its own |
-| Always draw a frame round the bar | when the copied art is not to taste |
+| Always draw a frame around the bar | when the copied art is not what you want |
 | Plain bars | skip the copied art entirely |
-| Make a noise when a heal lands | and which sound, for landing and for running out |
+| Play a sound when a heal lands | and which sound, for landing and for running out |
 
-The sound names are half guesswork against file ids, so press a number to hear it. Greyed out means this client refuses that file. `/tapline sound try` plays every one in turn.
+The sound names are half guesswork against file ids, so press a number to hear it. Grayed out means this client refuses that file. `/tapline sound try` plays every one in turn.
 
 ## Commands
 
@@ -74,8 +74,8 @@ The sound names are half guesswork against file ids, so press a number to hear i
 | `/tapline width <120-480>` \| `height <14-56>` | the size of one row |
 | `/tapline gap <-40-40>` \| `rowgap <-20-30>` | room beside the icon, and between rows |
 | `/tapline spark` \| `sparksize <0.5-4>` | the mark at the end of the fill |
-| `/tapline shadow <0-4>` | how deep the shadow round an icon is |
-| `/tapline edge` | always draw a frame round the bar |
+| `/tapline shadow <0-4>` | how deep the shadow around an icon is |
+| `/tapline edge` | always draw a frame around the bar |
 | `/tapline plain` | turn the copied art off |
 | `/tapline barbg <0-1>` | how dark the plate inside a bar is |
 | `/tapline rate <10-120>` | how often the bars are brought up to date |
@@ -96,5 +96,5 @@ The whole report is written into `TaplineDB.log` a few seconds after every login
 ## Notes
 
 - Built for the WoW: Forever client (Interface 16001).
-- The minimap button opens the options on a left click and hides the bars on a right click, and drags round the edge of the map.
+- The minimap button opens the options on a left click and hides the bars on a right click, and drags around the edge of the map.
 - Tapline once had a Life Tap readout, which is where the name comes from, and it was removed. Your own health and mana are secret to addons on this client too, so it could never do the arithmetic it was meant for: it could only show what a tap costs, which the spell tooltip already tells you. Knowing whether a heal is on you turns out to be the half of the question that can still be answered, and the half worth answering.

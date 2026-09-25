@@ -140,7 +140,7 @@ end
 
 -- The alert is picked from a row of numbered buttons rather than a dropdown. The list is short,
 -- pressing one plays it, and the names are half guesswork against file ids, so hearing it is the
--- whole point. Files this client refuses are greyed out and cannot be picked.
+-- whole point. Files this client refuses are grayed out and cannot be picked.
 function Options:Sounds(parent, x, y, label, key)
 	local text = Label(parent, label, 11)
 	text:SetPoint("TOPLEFT", x, y)
@@ -274,7 +274,7 @@ function Options:Content()
 	ry = self:Check(c, right, ry, "A spark at the end of the fill",
 		function() return P().spark ~= false end,
 		function(v) P().spark = v ns.Panel:Rebuild() end)
-	ry = self:Check(c, right, ry, "Always draw a frame round the bar",
+	ry = self:Check(c, right, ry, "Always draw a frame around the bar",
 		function() return P().edge == "always" end,
 		function(v) P().edge = v and "always" or "auto" ns.Panel:Rebuild() end)
 	ry = self:Check(c, right, ry, "Plain bars: skip the copied Cooldown Manager art", function() return P().plain end,
@@ -282,11 +282,11 @@ function Options:Content()
 
 	ry = self:Heading(c, right, ry - 8, "Alerts")
 	ry = self:Note(c, right, ry, "These are played by the game itself, so they work in combat, where this addon cannot see an aura at all.")
-	ry = self:Check(c, right, ry, "Make a noise when a heal lands", function() return P().soundOn ~= false end,
+	ry = self:Check(c, right, ry, "Play a sound when a heal lands", function() return P().soundOn ~= false end,
 		function(v) P().soundOn = v ns.SyncSounds() end)
 	ry = self:Sounds(c, right, ry, "When a heal lands on you", "sndApplied")
 	ry = self:Sounds(c, right, ry, "When one runs out", "sndLapsed")
-	ry = self:Note(c, right, ry, "Press a number to hear it. Greyed out means this client refuses that file.")
+	ry = self:Note(c, right, ry, "Press a number to hear it. Grayed out means this client refuses that file.")
 
 	local bottom = min(ly, ry) - 8
 	self:Button(c, left, bottom, 120, "Reset layout", function()

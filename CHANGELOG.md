@@ -1,9 +1,17 @@
 # Changelog
 
+## 1.17.1
+
+### Changed
+- British spellings and idioms taken out of everything you read: colour, grey, recognise, labelled, travelling, and "round" used as a preposition, which appeared 30 times in "a frame round the bar" and the like. "Make a noise when a heal lands" is now "Play a sound when a heal lands".
+- Three functions renamed off dialect: Reckon is Measure, ReckonCost is TapCost, ReckonIncoming is IncomingHeal.
+
+Nothing about how the addon behaves changed.
+
 ## 1.17.0
 
 ### Fixed
-- Memory climbing to a collection and starting again, and most of the processor time with it. Six rows were redressed on every tick, up to 120 times a second: a freshly formatted countdown string per row whether or not it read differently, a new table for every value written to a bar, and colours set again on rows that had not changed. None of it showed on screen.
+- Memory climbing to a collection and starting again, and most of the processor time with it. Six rows were redressed on every tick, up to 120 times a second: a freshly formatted countdown string per row whether or not it read differently, a new table for every value written to a bar, and colors set again on rows that had not changed. None of it showed on screen.
 - Work is now done only when it would come out differently: the countdown when it would read differently, the dressing when a row changes between idle and previewing, the spark's anchor when it would land at least a quarter of a pixel away, and one table refilled instead of a new one each time.
 - An idle row is still forced back to empty on every tick, on purpose. That is correctness, not dressing: a row left with a fill on it would keep it for good.
 
@@ -33,7 +41,7 @@
 ## 1.14.1
 
 ### Fixed
-- The frame round the bar needed a backdrop template, so on a client without one no frame was drawn at all, which mattered once 1.13.2 made the frame the default. Four plain lines are drawn instead, and the report says which was used.
+- The frame around the bar needed a backdrop template, so on a client without one no frame was drawn at all, which mattered once 1.13.2 made the frame the default. Four plain lines are drawn instead, and the report says which was used.
 
 ## 1.14.0
 
@@ -47,7 +55,7 @@
 ## 1.13.2
 
 ### Changed
-- A frame round the bar is drawn by default, and the spark starts at twice the bar rather than half again. Both were easy to miss at their old settings. Characters that already exist are carried to both once, and anything chosen after that is left alone.
+- A frame around the bar is drawn by default, and the spark starts at twice the bar rather than half again. Both were easy to miss at their old settings. Characters that already exist are carried to both once, and anything chosen after that is left alone.
 
 ### Fixed
 - A backing was being mistaken for a frame. The test was whether a piece reached past the bar, and the manager's backing sits a pixel or two proud of it, so on a client offering a backing and no frame the copy was reported as framed and the hand-made frame stopped being drawn. Art named as a border or a frame is taken as one now, art named as a background is not, and only where the name settles nothing does the shape decide.
@@ -120,7 +128,7 @@ The ids written down in `Data.lua` are still tried first and still checked again
 
 - **Fixed: the icon on the manager's own bar was never being found**, and that one miss was quietly breaking three things at once. The report said so plainly once it was asked the right questions: the mask and the shadow had both fallen back to asking for art by name rather than measuring it, and the icon's overlay was turning up in the list of **bar** art, flagged as a spark.
 
-The cause is small. On the real item, `.Icon` is a **frame** holding the texture, not the texture itself, and the check for it asked "does this have a texture on it", which a frame does not. So the search gave up. With no icon in hand there is nothing to measure the mask and shadow against, and nothing to recognise as belonging to the icon and keep out of the bar's art.
+The cause is small. On the real item, `.Icon` is a **frame** holding the texture, not the texture itself, and the check for it asked "does this have a texture on it", which a frame does not. So the search gave up. With no icon in hand there is nothing to measure the mask and shadow against, and nothing to recognize as belonging to the icon and keep out of the bar's art.
 
 It now looks where the icon actually is: the texture directly, the texture inside the frame of that name, that frame's first texture, and failing all of those, the squarest texture on the item or any of its children, since an icon is square and nothing else on one of these rows is.
 
@@ -153,7 +161,7 @@ Its donor had a mask with no rectangle to measure and drew no overlay at all, so
 
 ## 1.10.3
 
-- **The spark is Blizzard's own art again, not a coloured rectangle.** 1.10.2 drew one here because a copied texture that does not render is indistinguishable from no texture at all, and there was no way from inside the addon to tell them apart. There is: `C_Texture.GetAtlasInfo` answers outright whether this client has a given atlas. That settles the problem that had dogged the whole skin.
+- **The spark is Blizzard's own art again, not a colored rectangle.** 1.10.2 drew one here because a copied texture that does not render is indistinguishable from no texture at all, and there was no way from inside the addon to tell them apart. There is: `C_Texture.GetAtlasInfo` answers outright whether this client has a given atlas. That settles the problem that had dogged the whole skin.
 
 So the spark is taken in three goes, best first:
 
@@ -173,7 +181,7 @@ The checks passed on the version that could not find the atlas, because the stub
 
 - **The spark is drawn here now, always, even when the client offers one of its own.**
 
-Everything else in the look is copied on the principle that the client knows best. For the spark that principle broke down: a copied texture that does not render looks exactly like no texture at all, and there is no way from inside the addon to tell those two apart. The spark also has to sit precisely where the fill ends, which is the one place a wrongly measured piece shows most. So it is drawn here, where its size, its colour and its position are known, and any copied one is put away rather than left to fight it.
+Everything else in the look is copied on the principle that the client knows best. For the spark that principle broke down: a copied texture that does not render looks exactly like no texture at all, and there is no way from inside the addon to tell those two apart. The spark also has to sit precisely where the fill ends, which is the one place a wrongly measured piece shows most. So it is drawn here, where its size, its color and its position are known, and any copied one is put away rather than left to fight it.
 
 It is wider than a hairline and slightly taller than the bar, so it reads on a bar fifteen or twenty pixels high, which is where these usually end up. A tickbox turns it off, or `/tapline spark`.
 
@@ -197,12 +205,12 @@ So it is worth deciding rather than leaving: it can have its sampling back and k
 
   Health is still read once a second, purely so `/tapline debug` can keep saying what this client will and will not part with. It used to be read thirty times a second to be refused thirty times.
 
-- **The minimap button is back.** A tickbox, or `/tapline minimap`. Left click opens the options, right click shows or hides the heal bars, and it drags round the edge of the map.
+- **The minimap button is back.** A tickbox, or `/tapline minimap`. Left click opens the options, right click shows or hides the heal bars, and it drags around the edge of the map.
 - **Both gap sliders are back, and both go smaller than before.** The gap beside the icon starts clear of the frame art round the icon, and can be wound all the way down to nothing, so the bar begins where the picture ends. The gap between rows genuinely reaches zero now: every row used to be padded by the reach of that art whether it needed the room or not, and the padding sat behind the setting where no winding could reach it. It goes down to -20 as well.
 - **The spark and the icon shadow are back**, along with the frame. Each part of the look is asked for separately and made here only where the client will not give it up, so a bar can never come out worse than a plain one. The skin looks on the status bar as well as the item frame, which is where the manager actually keeps its frame, backing and spark, and measures decoration against the bar's own width rather than multiples of its height, which was throwing full-length art away.
 - **Bar background opacity** is its own slider, separate from the box behind the rows, and changing it does not rebuild the game's slots.
 - **Redraws a second** is a slider, 5 to 60. It governs the parts this addon draws, which now means the preview. The heal bars themselves are filled by the game and animate at its pace, not ours, so winding this up will not make those smoother.
-- **Always draw a frame round the bar** is a tickbox, for when the copied art is there but not to taste.
+- **Always draw a frame around the bar** is a tickbox, for when the copied art is there but not to taste.
 
 Still out, one command away each: growing the rows upwards, packing them together, one bar for any heal at all, and the preview letting heals fall off.
 
@@ -245,7 +253,7 @@ Say which of those you want and it comes back on top of this, one at a time, so 
 
   Whichever of those the client does not give up is made here instead, and the report says which came from where. A bar can no longer come out worse than the plain one.
 
-- **Always draw a frame round the bar** is a tickbox, and `/tapline edge`, for when the copied art is there but not to taste.
+- **Always draw a frame around the bar** is a tickbox, and `/tapline edge`, for when the copied art is there but not to taste.
 
 - **Packing the rows now asks the game to do it.** 1.7.0 handed every row every heal and assumed the game would fill them from the front. It does not: it keeps each heal in its own row and leaves the hole where the others would be, which is exactly what you saw. This addon cannot close that gap itself, because which rows are filled is aura data and secret here, which is the whole reason the game draws them.
 
@@ -255,13 +263,13 @@ Say which of those you want and it comes back on top of this, one at a time, so 
 
 ## 1.8.1
 
-- **Fixed: no spark, and no shadow on the icons.** Both came from the same place. The skin was reporting "0 pieces", meaning it had copied the manager's fill colour and nothing else, and there were two reasons for that stacked on top of each other.
+- **Fixed: no spark, and no shadow on the icons.** Both came from the same place. The skin was reporting "0 pieces", meaning it had copied the manager's fill color and nothing else, and there were two reasons for that stacked on top of each other.
 
 First, it only looked at the donor item frame's own regions. The Cooldown Manager keeps its frame, its backing and its spark on the **status bar**, not on the item, so there was never anything to find. It now walks the item, the bar, and one level of children beneath the item.
 
 Second, and worse, the filter that decides what counts as decoration measured a piece's width in multiples of the bar's **height**. A bar is about ten times as wide as it is tall, so the bar's own full-length frame looked like something enormous and was thrown out. It is measured against the bar's own width now, so full-length art is kept and only genuinely oversized things are skipped.
 
-- **The spark is treated as a spark.** A piece that is narrow against the bar's length keeps its own size and rides the end of the fill, travelling with it, instead of being stretched from one end to the other like a plate.
+- **The spark is treated as a spark.** A piece that is narrow against the bar's length keeps its own size and rides the end of the fill, traveling with it, instead of being stretched from one end to the other like a plate.
 - `/tapline debug` now lists every piece of art it copied, by atlas name, and says where the icon's shadow came from or that this client has no overlay atlas for it.
 
 ### And the harness, which had been passing on nothing
@@ -297,14 +305,14 @@ This arrangement is **not yet confirmed in game**. If the game turns out to put 
 
 - **Fixed: winding the row gap down to nothing still left the rows far apart.** The gap slider was working; the row height underneath it was not. Every row was being padded by the reach of the icon's frame art, about a tenth of the icon on each side, whether anything needed the room or not. That padding sat behind the setting and could not be wound out. A row is now as tall as the taller of the bar and the icon and no taller, so at a gap of nothing the rows sit exactly one row apart.
 
-The frame round an icon is a soft edge, and a little overlap between rows is what the Cooldown Manager itself does, so how close rows sit is left entirely to the slider now.
+The frame around an icon is a soft edge, and a little overlap between rows is what the Cooldown Manager itself does, so how close rows sit is left entirely to the slider now.
 
 - The row gap goes down to **-20** as well as up to 30, for pulling a big icon's rows together. It stops short of one row sitting entirely on top of the next however far it is wound.
 - The gap beside the icon is untouched: it still cannot be set low enough to put the bar back under the icon's frame, because that one is added to the minimum rather than replacing it.
 
 ## 1.6.0
 
-- **A button on the minimap**, with a tickbox in the options to turn it off and `/tapline minimap` to do the same. Left click opens the options, right click puts the Life Tap readout away or brings it back, and it can be dragged round the edge of the map to wherever suits. Its own button rather than a library: this addon has no libraries and is not growing one for a round button. The ring art is asked for by file id before it is used, because textures that have existed for twenty years are not guaranteed to render on this build, and a plain dark disc stands in if it is not there.
+- **A button on the minimap**, with a tickbox in the options to turn it off and `/tapline minimap` to do the same. Left click opens the options, right click puts the Life Tap readout away or brings it back, and it can be dragged around the edge of the map to wherever suits. Its own button rather than a library: this addon has no libraries and is not growing one for a round button. The ring art is asked for by file id before it is used, because textures that have existed for twenty years are not guaranteed to render on this build, and a plain dark disc stands in if it is not there.
 - **A gap slider for the room beside the icon**, and another for the room between rows. The icon one is added to the least that avoids an overlap rather than replacing it, so however far it is wound down the bar still starts after the icon's frame art has finished. `/tapline gap` and `/tapline rowgap` do the same from the command line.
 
 ### Locked in
@@ -313,7 +321,7 @@ The working build is tagged `known-good-1.5.0` in the repository and zipped at `
 
 ## 1.5.0
 
-- **Fixed: a bigger icon ran into the bar.** The frame drawn around an icon reaches past the picture on every side, and by a share of the icon rather than a fixed number of pixels, so it reaches further the further you push the size. A gap of four pixels was fine at the default and was simply run over at half again. The gap now grows with the icon, the icon is inset so its frame stays inside the row instead of hanging off the left, and the bar takes exactly the room that is left. The row also grows tall enough to hold a bigger icon, so rows stop running into each other as well.
+- **Fixed: a bigger icon ran into the bar.** The frame drawn aaround an icon reaches past the picture on every side, and by a share of the icon rather than a fixed number of pixels, so it reaches further the further you push the size. A gap of four pixels was fine at the default and was simply run over at half again. The gap now grows with the icon, the icon is inset so its frame stays inside the row instead of hanging off the left, and the bar takes exactly the room that is left. The row also grows tall enough to hold a bigger icon, so rows stop running into each other as well.
 
 That frame art was being measured against the bar's height rather than the icon's, which is what let it reach across in the first place. It follows the icon now, and across and down separately, because it is not square: it reaches 0.200 of the icon sideways and 0.175 down.
 
@@ -333,12 +341,12 @@ That is deliberately only half of the settings API. The other half, registering 
 - **Bar opacity**, **background opacity** and **border opacity** as separate sliders, so the rows can be solid over a box that is barely there, or the other way about.
 - **Scale**, and a **health to keep back** slider.
 - Tickboxes for the heal bars, the readout, the preview, and plain bars.
-- **An alert on/off tickbox** that does not forget which sound was chosen, and a picker for the heal-landed and ran-out sounds. Files this client refuses are greyed out and cannot be chosen at all.
+- **An alert on/off tickbox** that does not forget which sound was chosen, and a picker for the heal-landed and ran-out sounds. Files this client refuses are grayed out and cannot be chosen at all.
 - Buttons for resetting the layout, playing every sound in turn, and printing the self report.
 
 ### Underneath
 
-- Changing a size rebuilds the rows, because a slot the game has placed cannot be resized afterwards. Changing a colour or an opacity does not: that would throw away the game's slots for the sake of a tint. A rebuild asked for during a fight waits and happens the moment it ends.
+- Changing a size rebuilds the rows, because a slot the game has placed cannot be resized afterwards. Changing a color or an opacity does not: that would throw away the game's slots for the sake of a tint. A rebuild asked for during a fight waits and happens the moment it ends.
 
 ## 1.3.2
 
@@ -363,7 +371,7 @@ The offline harness passed 105 checks on the broken build, because its stub let 
 
 - **The explosion is gone.** The alert was switched on by taking the first entry in the list that had a sound file behind it, and that entry is the one called Explosion, so every heal landing on you set off a detonation. The default is a quieter cue now, anyone who was handed the explosion is moved off it once, and a sound chosen on purpose is never touched. The list is looked up by name rather than by position, which is what caused this.
 - `/tapline sound try` plays every sound the game can make in a fight, one every two seconds, announcing each one's number as it goes. The names in the list were written from memory against file ids and only two have ever been confirmed by ear. Tell me which number sounded like what and the names get fixed.
-- **The bars wear the Cooldown Manager's own art.** A manager bar is found at runtime and measured: the real fill texture or atlas, its colour, the pieces around it and how far each reaches past the bar, all stored as fractions of the bar's height so they scale with it. Naming an atlas and hoping is how you get art of the wrong shape. With no donor to copy, a hand-made frame in the same spirit is used, and `/tapline debug` says which is in use.
+- **The bars wear the Cooldown Manager's own art.** A manager bar is found at runtime and measured: the real fill texture or atlas, its color, the pieces aaround it and how far each reaches past the bar, all stored as fractions of the bar's height so they scale with it. Naming an atlas and hoping is how you get art of the wrong shape. With no donor to copy, a hand-made frame in the same spirit is used, and `/tapline debug` says which is in use.
 - **A timer on every bar**, written the way the manager writes them: "6 s", "1 m", and tenths under a second. Counted down rather than rounded, because a bar reading 7 with 6.4 left is lying in the direction that gets you killed.
 - **A preview.** `/tapline test`, or the tickbox in the options, runs every row on a made-up countdown at the real heal's own speed, so the layout can be judged without waiting on a healer.
 - **An options window**, built out of the client's own widgets with sliders for everything numeric: show the readout, show the bars, preview, bar width, bar height, scale, health to keep back, and both game-played sounds as a row of numbered buttons that play when pressed. `/tapline` opens it; `/tapline show` is now what toggles the readout.
@@ -397,7 +405,7 @@ It is deliberately Tapline's own window rather than a page in Blizzard's setting
 - So the readout stops pretending. When the numbers are secret it shrinks to what it does know, which is what a tap costs and what is heading your way, and says in one line that the bars below are the real answer. A panel of error text sitting over the game was worse than no panel; that detail lives in `/tapline debug` now.
 - Added one last resort before giving up: a percentage. Nameplates need one, so `UnitPercentHealthFromGUID` may be open where the number is not, and a percentage is enough for both things that matter here. A floor reads perfectly well in per cent, and the tick clock only ever cared how big a jump was against your maximum. If that call works, the estimate and the floor come back on their own, with the readout saying a percentage is all it was given.
 - Fixed a real mistake: mana that could not be read was being taken for a full mana bar, so the verdict would answer "no need" for the whole of a fight on a client that keeps mana secret. That is the one answer that is certainly wrong. Unknown mana now drops the question instead of answering it.
-- `/tapline log` writes the whole report into `TaplineDB.log` with the colour codes stripped. A long report has only ever reached me as a photograph of the screen, which catches about a third of it; saved, it can be read off disk after a `/reload`.
+- `/tapline log` writes the whole report into `TaplineDB.log` with the color codes stripped. A long report has only ever reached me as a photograph of the screen, which catches about a third of it; saved, it can be read off disk after a `/reload`.
 
 ## 1.0.1
 

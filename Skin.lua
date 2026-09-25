@@ -2,7 +2,7 @@
 --
 -- The bars are meant to pass for the Cooldown Manager's own, and the only reliable way to do that
 -- is to find one of its bars at runtime and MEASURE it: read the real textures, the real atlas
--- names, the real colours, and the real distances each piece reaches past the bar, stored as
+-- names, the real colors, and the real distances each piece reaches past the bar, stored as
 -- fractions of the bar's height so they scale. Naming an atlas and hoping is how you end up with
 -- art that is the wrong shape, and nothing here is worth that.
 --
@@ -59,7 +59,7 @@ end
 
 -- How far one region reaches past another, as shares of that other's size. This is the whole
 -- trick: a piece measured this way can be laid back on an icon of any size and keep its shape.
--- Naming an atlas and reckoning a size from it is what produced art of the wrong shape before.
+-- Naming an atlas and guessing a size from it is what produced art of the wrong shape before.
 local function RelRect(region, ref)
 	local r, base = Rect(region), Rect(ref)
 	if not r or not base or base.w <= 0 or base.h <= 0 then return nil end
@@ -71,7 +71,7 @@ local function RelRect(region, ref)
 	}
 end
 
--- What the manager draws round its own icon, when none of it can be measured: one mask exactly
+-- What the manager draws around its own icon, when none of it can be measured: one mask exactly
 -- the size of the picture, and an overlay reaching past it further across than down. That overlay
 -- IS the shadow on this client; there is no border art on any of the viewers.
 local ICON_MASK_ATLAS = "UI-HUD-CoolDownManager-Mask"
@@ -217,14 +217,14 @@ function Skin:Build()
 	self.ready = true
 	-- Nothing in here may throw. It is called while a row is being made, and a row that fails to
 	-- be made is a heal you never see land on you, which is worse than a plain looking bar.
-	local ok, err = pcall(self.Reckon, self)
+	local ok, err = pcall(self.Measure, self)
 	if not ok then
 		ns.report["bar skin"] = "could not be read off the client: " .. tostring(err):gsub("^.-%.lua:%d+:%s*", "")
 	end
 	return self
 end
 
-function Skin:Reckon()
+function Skin:Measure()
 	self.source = "hand made"
 	self.fillColor = { 0.96, 0.55, 0.16 }
 	self.barTexture = PLAIN_BAR
@@ -392,7 +392,7 @@ function Skin:Dress(bar, height, icon, name, time, iconSize, already)
 end
 
 function Skin:Apply(bar, height, icon, name, time, iconSize, already)
-	-- Measured against the icon, never against the bar: the art round a picture grows with the
+	-- Measured against the icon, never against the bar: the art around a picture grows with the
 	-- picture, and sizing it off the bar is what let it reach across into the fill.
 	iconSize = iconSize or height
 	local tex = bar:GetStatusBarTexture()
@@ -440,7 +440,7 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 	-- been copied, which is far too coarse: the moment one stray texture was found the hand-made
 	-- frame stopped being drawn, and if that texture was not a frame the bar simply lost its edge.
 	-- Each part of the look is asked for separately now, and made by hand only where it is missing.
-	-- Whether a copied piece is the frame round the bar.
+	-- Whether a copied piece is the frame around the bar.
 	--
 	-- Geometry alone was not enough. The test was whether a piece reached past the bar, and the
 	-- manager's backing sits a pixel or two proud of it, which counted. So a bar that has a backing
@@ -594,7 +594,7 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 				if rate > 2 then rate = nil end
 			end
 			-- The same table, filled in again. A new one per value per bar per frame is a great deal
-			-- of rubbish to make for something only ever read once and thrown away.
+			-- of garbage to make for something only ever read once and thrown away.
 			local keep = bar.tlSeen
 			if keep then
 				keep.value, keep.at, keep.rate = v, now, rate

@@ -29,8 +29,8 @@ local function Have(path)
 	return ok and id and true or false
 end
 
--- Where the button sits: an angle round the minimap, which is how every other one works, so it
--- lands where the hand expects and can be dragged round the edge.
+-- Where the button sits: an angle around the minimap, which is how every other one works, so it
+-- lands where the hand expects and can be dragged around the edge.
 function Button:Place()
 	local p, b = ns.Profile(), self.frame
 	if not p or not b or not Minimap then return end
@@ -129,7 +129,7 @@ function Button:Build()
 		GameTooltip:SetText("Tapline")
 		GameTooltip:AddLine("Left click: the options", 1, 1, 1)
 		GameTooltip:AddLine("Right click: show or hide the heal bars", 1, 1, 1)
-		GameTooltip:AddLine("Drag: move it round the minimap", 0.8, 0.8, 0.8)
+		GameTooltip:AddLine("Drag: move it around the minimap", 0.8, 0.8, 0.8)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)

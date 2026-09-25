@@ -29,11 +29,11 @@
 --
 -- Everything that reads the client is written to report what it was refused rather than to go
 -- quiet, because on this client "it did not work" is never the useful half of the answer.
--- "/tapline debug" prints the lot.
+-- "/tapline debug" prints everything.
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.17.0"
+ns.VERSION = "1.17.1"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -339,12 +339,12 @@ local DEFAULTS = {
 	spark = true,    -- the bright mark that rides the end of the fill
 	shadowLayers = 2, -- how deep the icon shadow is; one is what the manager draws, two is how it reads
 	sparkScale = 2, -- how big it is against the bar; the art is drawn for a taller bar than these
-	edge = "always", -- a frame round the bar, drawn whatever the client offered; "auto" defers to it
+	edge = "always", -- a frame around the bar, drawn whatever the client offered; "auto" defers to it
 	rate = 60,       -- how many times a second the bars are brought up to date
 	gapExtra = 0,    -- room between the icon and the bar, on top of what the art needs
 	rowGap = 4,      -- room between one row and the next
 	minimap = true,
-	minimapAngle = 200, -- where round the map it sits, in degrees
+	minimapAngle = 200, -- where around the map it sits, in degrees
 	barX = nil, barY = nil,
 }
 ns.DEFAULTS = DEFAULTS
@@ -368,7 +368,7 @@ function ns.InitDB()
 	-- to end, and it was shipped switched off, which made the addon look like it did nothing.
 	--
 	-- It was then switched on by taking the first entry that had a sound file, which is the one
-	-- labelled Explosion, so a heal landing set off a detonation. Anyone who was given that is
+	-- labeled Explosion, so a heal landing set off a detonation. Anyone who was given that is
 	-- moved to the quieter cue once; a sound chosen deliberately is never touched.
 	p.soundsDefaulted = true -- retired key, kept so an old profile is not defaulted twice
 	-- The frame and the spark were both easy to miss at their old settings: the frame because it
@@ -770,12 +770,12 @@ function ns.Cost()
 		and now - costCache.at < 5 then
 		return costCache.cost, costCache.why
 	end
-	local cost, why = ns.ReckonCost()
+	local cost, why = ns.TapCost()
 	costCache = { at = now, rank = p and p.rank, set = p and p.cost, cost = cost, why = why }
 	return cost, why
 end
 
-function ns.ReckonCost()
+function ns.TapCost()
 	local p = Profile()
 	if p and tonumber(p.cost) then return tonumber(p.cost), "set by you" end
 	local id = p and tonumber(p.rank)
@@ -809,12 +809,12 @@ function ns.Incoming()
 	local now = GetTime()
 	local memo = S.incomingMemo
 	if memo and memo.at == now then return memo[1], memo[2], memo[3] end
-	local a, b, c = ns.ReckonIncoming(now)
+	local a, b, c = ns.IncomingHeal(now)
 	S.incomingMemo = { a, b, c, at = now }
 	return a, b, c
 end
 
-function ns.ReckonIncoming(now)
+function ns.IncomingHeal(now)
 	local name, left, row = ns.ReadHot()
 	if name then
 		S.seen = { name = name, duration = row and row.duration or 15, at = now }
@@ -1165,7 +1165,7 @@ function ns.OnUpdate(elapsed)
 	-- What this tick is actually for is the preview and the smoothing. If the countdown on this
 	-- client is secret there is nothing to smooth, and with no preview running either there is
 	-- nothing moving that belongs to this addon at all: the heal bars are drawn by the game and
-	-- do not wait on us. All that is left is keeping an idle row tidy, which is worth a few times
+	-- do not wait on us. All that is left is keeping an idle row empty, which is worth a few times
 	-- a second rather than a hundred, and the difference is the whole of what this was costing.
 	if ns.sawSecretBar and not (p and p.test) then rate = 5 end
 	if acc < (1 / rate) then return end

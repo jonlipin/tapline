@@ -116,7 +116,7 @@ end
 -- fight. When a heal is on you, the game's row covers ours entirely; when it is not, the game
 -- hides its row and ours shows through. Both wear the same art, so the swap is invisible.
 --
--- Every handover to a slot is guarded on its own. One pcall round the lot was worse than useless:
+-- Every handover to a slot is guarded on its own. One pcall around the whole thing was worse than useless:
 -- the slot frame is the game's, resizing one is refused, and that single refusal threw away the
 -- icon, the bar and the text with it, so the game fell back to drawing its own presentation
 -- wherever it liked. The button is never resized now. What the game accepted is counted, so the
@@ -132,12 +132,12 @@ end
 -- Everything about the shape of one row, worked out in one place so the cell, the slot the game
 -- draws over it and the box around them can never disagree about how much room the icon takes.
 --
--- The icon is not just the picture. The frame drawn around it reaches past the artwork on every
+-- The icon is not just the picture. The frame drawn aaround it reaches past the artwork on every
 -- side, and by a share of the icon rather than a fixed number of pixels, so it reaches further
 -- the bigger the icon gets. A gap of a few pixels is fine at the default size and is run straight
 -- over at half again, which is the overlap this fixes: the gap grows with the icon, and the row
 -- grows tall enough to hold it so neighbouring rows are not run into either.
--- Measured off the manager: the frame round an icon is not square, reaching further across than
+-- Measured off the manager: the frame around an icon is not square, reaching further across than
 -- it does down. Both are shares of the icon, so both grow with it.
 local ICON_OVERHANG_X, ICON_OVERHANG_Y = 0.200, 0.175
 
@@ -162,7 +162,7 @@ function Panel:RowMetrics()
 	local iconSize = max(8, floor(h * (tonumber(p.iconScale) or 1) + 0.5))
 	local overhang = floor(iconSize * ICON_OVERHANG_X + 0.5)
 	local overhangY = floor(iconSize * ICON_OVERHANG_Y + 0.5)
-	-- The frame round an icon reaches past the picture, so by default the bar starts clear of it.
+	-- The frame around an icon reaches past the picture, so by default the bar starts clear of it.
 	-- The setting adds to that or takes from it, down to nothing at all: pulled all the way in,
 	-- the bar begins where the picture ends and the soft edge of the art laps over it, which is
 	-- a fair thing to want and not this addon's business to forbid.
@@ -310,7 +310,7 @@ local function Cell(parent, row, index)
 end
 
 -- This runs for every row, as often as the tick does, so what it must not do is redo work that
--- has already settled. Colours and alphas only change when a row goes from idle to previewing or
+-- has already settled. Colors and alphas only change when a row goes from idle to previewing or
 -- back, and the countdown only reads differently ten times a second at its very finest. Setting
 -- them regardless meant a new formatted string and a new table per row per frame, which is most
 -- of what this addon was handing the collector to clean up.

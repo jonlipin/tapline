@@ -193,10 +193,10 @@ function ns.Usage()
 	Print("  /tapline forget - throw away every learned spell id and start again")
 	Print("  /tapline minimap - show or hide the button on the minimap")
 	Print("  /tapline gap <-40-40> | rowgap <-20-30> - room beside the icon, and between rows")
-	Print("  /tapline edge - always draw a frame round the bar, even if the client gave us one")
+	Print("  /tapline edge - always draw a frame around the bar, even if the client gave us one")
 	Print("  /tapline spark - the mark at the end of the fill, on or off")
 	Print("  /tapline sparksize <0.5-4> - how big it is against the bar")
-	Print("  /tapline shadow <0-4> - how deep the shadow round an icon is")
+	Print("  /tapline shadow <0-4> - how deep the shadow around an icon is")
 	Print("  /tapline rate <10-120> - how often the bars are brought up to date")
 	Print("  /tapline smooth - carry a bar on between the game's own updates, on or off")
 	Print("  /tapline glide - let the spark glide over those updates, on or off")
@@ -279,7 +279,7 @@ local function Command(msg)
 		p.edge = (p.edge == "always") and "auto" or "always"
 		ns.Panel:Rebuild()
 		if ns.Options then ns.Options:Refresh() end
-		Print(p.edge == "always" and "Always drawing a frame round the bar."
+		Print(p.edge == "always" and "Always drawing a frame around the bar."
 			or "Drawing a frame only where the client did not give us one.")
 	elseif sub == "barbg" and n then
 		p.barBgAlpha = max(0, min(1, n))

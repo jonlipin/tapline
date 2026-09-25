@@ -23,7 +23,7 @@ ns.RANK_IDS = {
 }
 
 -- The heals over time another player can put on you: how long each runs and how far apart its ticks
--- are. The period is what lets a run of health gains be recognised as one spell; the duration is
+-- are. The period is what lets a run of health gains be recognized as one spell; the duration is
 -- what puts a time on it when the auras themselves cannot be read.
 -- A heal listed here that this client does not have is withheld: its ranks resolve to nothing,
 -- and a row is only drawn for a heal the client agrees exists. So a guess costs nothing but the
