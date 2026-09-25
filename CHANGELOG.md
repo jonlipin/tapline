@@ -2,77 +2,55 @@
 
 ## 1.17.0
 
-- **Fixed the memory climbing and falling back, and most of the processor time with it.**
+### Fixed
+- Memory climbing to a collection and starting again, and most of the processor time with it. Six rows were redressed on every tick, up to 120 times a second: a freshly formatted countdown string per row whether or not it read differently, a new table for every value written to a bar, and colours set again on rows that had not changed. None of it showed on screen.
+- Work is now done only when it would come out differently: the countdown when it would read differently, the dressing when a row changes between idle and previewing, the spark's anchor when it would land at least a quarter of a pixel away, and one table refilled instead of a new one each time.
+- An idle row is still forced back to empty on every tick, on purpose. That is correctness, not dressing: a row left with a fill on it would keep it for good.
 
-  It was not a leak. Memory that climbs to a figure and starts again from the bottom is the collector doing its job; what was wrong was how much it was being given to do. Six rows were being redressed from scratch as often as the tick ran, which at your setting was a hundred and twenty times a second: a freshly formatted countdown string for each row whether or not it read any differently, a new table for every value written to every bar, and the colours and alphas set again on rows that had not changed what they were showing.
-
-  None of that was visible on screen. It is only done now when it would come out differently: the countdown when it would read differently, the dressing when a row changes between idle and previewing, the spark's anchor when it would land more than a quarter of a pixel from where it already is, and the watcher fills the same table in rather than making a new one.
-
-  Two things stayed unconditional on purpose, because they are correctness rather than dressing: an idle row is put back to empty, and its spark put away, whatever else wrote to it. A row left with a fill on it would keep it for good.
-
-- **The tick no longer runs at full speed to do nothing.** It exists for the preview and the smoothing. Where the countdown is secret there is nothing to smooth, and with the preview off there is nothing of this addon's moving at all, so it drops to five times a second. The heal bars are unaffected: they are drawn by the game and never waited on this.
-
-- **`/tapline debug` now counts rebuilds.** A rebuild throws away every frame in the display and makes new ones, and this client never gives a frame back, so a rebuild that fires on a timer rather than on an actual change is a leak nothing can clean up. If that number climbs while you stand still, that is a real one and worth reporting.
+### Changed
+- The tick drops to 5 times a second when the countdown is secret and the preview is off, since nothing of this addon's is moving. The heal bars are drawn by the game and never waited on it.
+- `/tapline debug` counts rebuilds. A rebuild throws away every frame in the display and makes new ones, and this client never gives a frame back, so a rebuild firing on a timer is a leak nothing can clean up.
 
 ## 1.16.0
 
-- **Fixed a crash at login, and with it the reason the smoothing had nothing to work on.**
+### Fixed
+- Crash at login: `attempt to perform boolean test on a secret boolean value`. 1.15.0 asked the spark whether it was shown before placing it, and that answer is secret here, because the game works out whether a row is running from its own countdown, which is aura data. Testing a secret taints the addon, after which the client refuses every boolean test it reaches.
+- A secret answer is now read as yes, since placing a hidden spark draws nothing. The bar's range is treated the same way.
 
-  1.15.0 asked the spark whether it was shown before placing it. On this client that answer comes back as a *secret value*: the game works out whether the row is running from its own countdown, which is aura data, and aura data is handed to an addon sealed. A secret may be held and passed along but never looked inside, and testing one taints the addon — after which the client refuses every boolean test it reaches, anywhere. That is the `attempt to perform boolean test on a secret boolean value` in the error, and it fired on the first draw after login.
-
-  The question is no longer asked in a way that needs an answer. A secret reply is read as yes, because placing a spark that is hidden puts nothing on the screen. The bar's range is treated the same way, since it belongs to the game too.
-
-- **The honest consequence: on a bar whose countdown is secret, neither the smoothing nor the glide can do anything, and they no longer pretend to.**
-
-  This is the part worth being straight about. 1.14.0 and 1.15.0 both work by reading the number the game wrote and carrying it forward, and that number cannot be read here. What those two releases actually improved was the preview. On the real heal bars they were doing nothing, and the way they went about it is what caused the crash.
-
-  `/tapline debug` now reports **the game's countdown** as readable or secret, so it says plainly which you have rather than leaving it to be guessed at. The bars themselves are unaffected either way: they are drawn by the game and always were.
-
-- The version this addon reports had been stuck at 1.14.0 while the file said otherwise, so the automatic report was labelling itself wrong.
+### Changed
+- A bar whose countdown is secret is left exactly as the game draws it. Both the smoothing in 1.14.0 and the glide in 1.15.0 work by reading the number the game wrote and carrying it forward, and that number cannot be read on this client, so on the real heal bars they only ever affected the preview.
+- `/tapline debug` reports the game's countdown as readable or secret.
+- The version the addon reported itself as was stuck at 1.14.0.
 
 ## 1.15.0
 
-- **The spark glides now, instead of stepping with the fill it sits on.**
+### Added
+- The spark glides between the game's updates instead of stepping with the fill it sits on. It is placed from the same running guess the fill is drawn from, eased over the game's corrections, and put straight there when a heal lands rather than sliding up the bar. Tickbox, or `/tapline glide`.
 
-  The spark rides the end of the fill, which means it can only move when the fill moves, and the fill moves when the game writes to it. 1.14.0 made those writes carry on smoothly in between, which helped, but every write the game does is also a correction, and the spark is the part of the bar the eye actually follows, so it is where a correction shows.
-
-  It is given a place of its own now. It is drawn from the same running guess the fill is drawn from, so the two cannot drift apart, and it eases over the corrections rather than jumping to them. The result glides whether or not the fill underneath it is stepping.
-
-  It is not allowed to invent its own progress: what it eases towards is the countdown the game last wrote, carried on at the rate the game itself has been draining it. A gap too big to be a countdown is a heal landing or the row being handed to another heal, and it is put there at once rather than sailing up the bar. A row with nothing running on it has no spark to place.
-
-  A tickbox turns it off, or `/tapline glide`, and the spark goes back to riding the fill.
-
-- The README had not caught up with 1.14.0: **Redraws a second** governs the bars, not just the preview, and it runs 10 to 120. `/tapline smooth` was missing from it entirely.
+### Fixed
+- The README still described 1.13.x: Redraws a second governs the bars and not only the preview, and runs 10 to 120. `/tapline smooth` was missing from it.
 
 ## 1.14.1
 
-- **The frame round the bar no longer depends on the client offering a backdrop template.** Where that template is missing the frame was simply not drawn, and since 1.13.2 made the frame the default that would have meant a bar with nothing round it and no way to tell why. It is drawn with four plain lines instead in that case, which needs nothing but a texture. The report says which of the two was used.
-
-  Nothing changes on a client that has the template, which is the one this is played on. It is the sort of thing that only shows up on someone else's machine, at which point it is a mystery rather than a bug.
+### Fixed
+- The frame round the bar needed a backdrop template, so on a client without one no frame was drawn at all, which mattered once 1.13.2 made the frame the default. Four plain lines are drawn instead, and the report says which was used.
 
 ## 1.14.0
 
-- **The heal bars are smooth now, not just the preview.**
+### Added
+- The fill is carried on between the game's own updates, which are not frequent, by watching how fast it is falling and keeping it falling at that rate until the next write arrives. A wrong guess is corrected by that write and never carried past a second. Tickbox, or `/tapline smooth`.
+- Later correction: on this client the countdown cannot be read, so this only ever affected the preview. See 1.16.0.
 
-The bars are filled by the game, and it writes to them at its own pace, which is not a smooth one. Nothing in an addon can make it write more often, and "Redraws a second" never touched them: it governed what this addon draws, which until now meant the preview and nothing else. Saying that was honest and unhelpful.
-
-What can be done is watch how fast the game is draining a bar and keep it draining at that rate until the next real update arrives. That is the difference between a bar that steps and a bar that pours.
-
-It is kept careful. The game's next write corrects whatever was guessed, so a wrong guess lasts a fraction of a second and is never carried forward. Our own writes are marked so they are not timed as though they were the game's, which would let the rate run away. A jump far too large to be a countdown is read as a heal landing rather than a drain, so a new bar does not start by flying downwards. Nothing is carried for longer than a second, because a bar that has not been written to for a second has stopped, and guessing past that draws a heal that ended.
-
-A tickbox turns it off, or `/tapline smooth`.
-
-- **Redraws a second** now runs to 120 and starts at 60, and it means what it says: how often the bars are brought up to date.
+### Changed
+- Redraws a second runs 10 to 120 and starts at 60.
 
 ## 1.13.2
 
-- **A frame round the bar is drawn by default**, and **the spark starts at twice the bar** rather than a bit over half again. Both were easy to miss at their old settings: the frame because it was a tickbox with no reason to go looking for it, and the spark because Blizzard's art is drawn for a taller bar than these usually are and comes out a sliver at its own scale. Characters that already exist are carried to both once, and anything chosen after that is left alone.
+### Changed
+- A frame round the bar is drawn by default, and the spark starts at twice the bar rather than half again. Both were easy to miss at their old settings. Characters that already exist are carried to both once, and anything chosen after that is left alone.
 
-- **Fixed, separately: a backing was being mistaken for a frame.** The test for whether the client had given us a frame was whether a piece reached past the bar, and the manager's backing sits a pixel or two proud of it, which counted. So on a client that offers a backing and no frame at all, the copy was reported as framed and the hand-made frame stopped being drawn.
-
-  A piece says what it is in its own name, so that is asked first now: art named as a border or a frame is one, art named as a background is not, and only where the name settles nothing does the shape decide, at a reach a backing will not manage.
-
-  This was not what went wrong yesterday, which was simply the tickbox being off, but it would have bitten as soon as anyone turned that tickbox back to deferring to the client.
+### Fixed
+- A backing was being mistaken for a frame. The test was whether a piece reached past the bar, and the manager's backing sits a pixel or two proud of it, so on a client offering a backing and no frame the copy was reported as framed and the hand-made frame stopped being drawn. Art named as a border or a frame is taken as one now, art named as a background is not, and only where the name settles nothing does the shape decide.
 
 ## 1.13.1
 
