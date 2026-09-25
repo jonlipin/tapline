@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.14.1
+
+- **The frame round the bar no longer depends on the client offering a backdrop template.** Where that template is missing the frame was simply not drawn, and since 1.13.2 made the frame the default that would have meant a bar with nothing round it and no way to tell why. It is drawn with four plain lines instead in that case, which needs nothing but a texture. The report says which of the two was used.
+
+  Nothing changes on a client that has the template, which is the one this is played on. It is the sort of thing that only shows up on someone else's machine, at which point it is a mystery rather than a bug.
+
 ## 1.14.0
 
 - **The heal bars are smooth now, not just the preview.**

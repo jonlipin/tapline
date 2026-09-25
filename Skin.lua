@@ -470,6 +470,29 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 				edge:SetBackdrop({ edgeFile = BORDER_FILE, edgeSize = 10 })
 				edge:SetBackdropBorderColor(0.72, 0.60, 0.36, 1)
 				bar.tlEdge = edge
+			else
+				-- No backdrop template on this client, and a frame is too much of the look to give up
+				-- over a missing one. Four thin lines need nothing but a texture.
+				local plain = CreateFrame("Frame", nil, bar)
+				plain:SetPoint("TOPLEFT", -1, 1)
+				plain:SetPoint("BOTTOMRIGHT", 1, -1)
+				plain.sides = {}
+				for _, side in ipairs({ "TOP", "BOTTOM", "LEFT", "RIGHT" }) do
+					local line = plain:CreateTexture(nil, "OVERLAY")
+					line:SetColorTexture(0.72, 0.60, 0.36, 1)
+					if side == "TOP" or side == "BOTTOM" then
+						line:SetPoint(side .. "LEFT")
+						line:SetPoint(side .. "RIGHT")
+						line:SetHeight(1)
+					else
+						line:SetPoint("TOP" .. side)
+						line:SetPoint("BOTTOM" .. side)
+						line:SetWidth(1)
+					end
+					plain.sides[#plain.sides + 1] = line
+				end
+				bar.tlEdge = plain
+				ns.report["bar frame art"] = "plain lines: this client has no backdrop template"
 			end
 		end
 		if bar.tlEdge then bar.tlEdge:Show() end
