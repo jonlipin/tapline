@@ -593,7 +593,14 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 				-- A jump far too big to be a countdown is a new heal landing, not a drain.
 				if rate > 2 then rate = nil end
 			end
-			bar.tlSeen = { value = v, at = now, rate = rate }
+			-- The same table, filled in again. A new one per value per bar per frame is a great deal
+			-- of rubbish to make for something only ever read once and thrown away.
+			local keep = bar.tlSeen
+			if keep then
+				keep.value, keep.at, keep.rate = v, now, rate
+			else
+				bar.tlSeen = { value = v, at = now, rate = rate }
+			end
 		end
 		if not bar.tlSparkHooked then
 			bar.tlSparkHooked = true

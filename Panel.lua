@@ -17,7 +17,7 @@ local Panel = {}
 ns.Panel = Panel
 
 local Clean, Secret = ns.Clean, ns.Secret
-local floor, max, min = math.floor, math.max, math.min
+local floor, max, min, abs = math.floor, math.max, math.min, math.abs
 local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 local BACKDROP = {
 	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -78,6 +78,10 @@ function Panel:Rebuild()
 		return false
 	end
 	self.rebuildWanted = nil
+	-- Worth counting. A rebuild throws away every frame in the display and makes new ones, and
+	-- this client never gives a frame back, so a rebuild that fires on a timer rather than on a
+	-- change is a leak that nothing can clean up. The report says how many there have been.
+	ns.state.stats.rebuilds = (ns.state.stats.rebuilds or 0) + 1
 	self.barKey, self.container, self.cells, self.plates, self.liveBars = nil, nil, nil, nil, nil
 	if self.bars then self.bars:Hide() self.bars = nil end
 	self:BuildBars()
@@ -305,33 +309,53 @@ local function Cell(parent, row, index)
 	return cell
 end
 
+-- This runs for every row, as often as the tick does, so what it must not do is redo work that
+-- has already settled. Colours and alphas only change when a row goes from idle to previewing or
+-- back, and the countdown only reads differently ten times a second at its very finest. Setting
+-- them regardless meant a new formatted string and a new table per row per frame, which is most
+-- of what this addon was handing the collector to clean up.
 function Panel:DressCell(cell, testing, now)
-	local w, h = self:BarSize()
 	if testing then
 		-- A preview that moves, so the layout can be judged without waiting on a healer. The clock
 		-- is the heal's own duration, so a test bar runs at the speed the real one will.
 		local period = (cell.row and cell.row.duration) or 15
 		local left = period - ((now + (cell.testOffset or 0)) % period)
 		cell.bar:SetValue(left / period)
-		cell.time:SetText(ns.BarTime(left))
-		cell.icon:SetDesaturated(false)
-		cell.icon:SetAlpha(1)
-		cell.bar:SetAlpha(1)
-		cell.name:SetTextColor(1, 1, 1)
-		cell.time:SetTextColor(1, 1, 1)
+		local text = ns.BarTime(left)
+		if text ~= cell.lastTime then
+			cell.lastTime = text
+			cell.time:SetText(text)
+		end
+		if cell.dressed ~= "test" then
+			cell.dressed = "test"
+			cell.icon:SetDesaturated(false)
+			cell.icon:SetAlpha(1)
+			cell.bar:SetAlpha(1)
+			cell.name:SetTextColor(1, 1, 1)
+			cell.time:SetTextColor(1, 1, 1)
+		end
 	else
-		cell.bar:SetValue(0)
+		-- These two are not dressing but correctness, and they stay unconditional. A value can be
+		-- put on this bar from outside -- the preview stopping, or the smoothing carrying a fill
+		-- on -- and a row that has been left with a fill on it would keep it for good. Neither
+		-- line allocates anything, and writing is skipped when there is nothing to write.
+		local v = tonumber(Clean(cell.bar:GetValue())) or 0
+		if v ~= 0 then cell.bar:SetValue(0) end
 		-- An empty bar has its fill squeezed to nothing at the left hand end, and the spark rides
 		-- the end of the fill, so it would sit against the left edge looking like a mark on the
 		-- plate. A spark belongs to a bar that is actually running.
 		if cell.bar.tlSpark then cell.bar.tlSpark:Hide() end
-		cell.time:SetText("")
-		cell.icon:SetDesaturated(true)
-		cell.icon:SetAlpha(0.35)
-		cell.bar:SetAlpha(0.45)
-		cell.name:SetAlpha(1)
-		cell.time:SetAlpha(1)
-		cell.name:SetTextColor(0.55, 0.53, 0.47)
+		if cell.dressed ~= "idle" then
+			cell.dressed = "idle"
+			cell.lastTime = ""
+			cell.time:SetText("")
+			cell.icon:SetDesaturated(true)
+			cell.icon:SetAlpha(0.35)
+			cell.bar:SetAlpha(0.45)
+			cell.name:SetAlpha(1)
+			cell.time:SetAlpha(1)
+			cell.name:SetTextColor(0.55, 0.53, 0.47)
+		end
 	end
 end
 
@@ -472,7 +496,9 @@ function Panel:Smooth(now)
 			if gone > 0 and gone < 1 then
 				local predicted = seen.value - seen.rate * gone
 				if predicted < 0 then predicted = 0 end
-				if predicted < seen.value then
+				-- A write the bar would not notice still costs a write, and there are six of them.
+				if predicted < seen.value and (not bar.tlWrote or abs(predicted - bar.tlWrote) > 0.0005) then
+					bar.tlWrote = predicted
 					bar.tlOurs = true
 					pcall(bar.SetValue, bar, predicted)
 					bar.tlOurs = nil
@@ -501,7 +527,7 @@ function Panel:Glide(now)
 		local spark = bar.tlSpark
 		if spark and not want and bar.tlSparkGliding then
 			-- Put it back on the end of the fill and leave it there.
-			bar.tlSparkGliding, bar.tlSparkPos = nil, nil
+			bar.tlSparkGliding, bar.tlSparkPos, bar.tlSparkPx = nil, nil, nil
 			spark:ClearAllPoints()
 			spark:SetPoint("CENTER", bar:GetStatusBarTexture() or bar, "RIGHT", 0, 0)
 		elseif spark and want then
@@ -541,8 +567,14 @@ function Panel:Glide(now)
 					end
 					bar.tlSparkPos, bar.tlSparkAt = at, now
 					bar.tlSparkGliding = true
-					spark:ClearAllPoints()
-					spark:SetPoint("CENTER", bar, "LEFT", at * width, 0)
+					-- Anchoring it again to put it back where it already is costs the same as moving
+					-- it, and a quarter of a pixel is under what anyone can see.
+					local px = at * width
+					if not bar.tlSparkPx or abs(px - bar.tlSparkPx) >= 0.25 then
+						bar.tlSparkPx = px
+						spark:ClearAllPoints()
+						spark:SetPoint("CENTER", bar, "LEFT", px, 0)
+					end
 				end
 			end
 		end

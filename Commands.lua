@@ -100,7 +100,7 @@ function ns.Probe()
 			Where("slot " .. tostring(key), slot.frame)
 		end
 	end
-	Print(("    refreshes: panel %d, bars %d"):format(ns.state.stats.refresh or 0, ns.state.stats.barRefresh or 0))
+	Print(("    refreshes: panel %d, bars %d, rebuilds %d"):format(ns.state.stats.refresh or 0, ns.state.stats.barRefresh or 0, ns.state.stats.rebuilds or 0))
 
 	if next(ns.slotCalls or {}) then
 		Print("  what the game let us hand to a slot:")

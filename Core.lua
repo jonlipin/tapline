@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.16.0"
+ns.VERSION = "1.17.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -1162,6 +1162,12 @@ function ns.OnUpdate(elapsed)
 	local p = Profile()
 	local rate = (p and tonumber(p.rate)) or 30
 	if rate < 10 then rate = 10 elseif rate > 120 then rate = 120 end
+	-- What this tick is actually for is the preview and the smoothing. If the countdown on this
+	-- client is secret there is nothing to smooth, and with no preview running either there is
+	-- nothing moving that belongs to this addon at all: the heal bars are drawn by the game and
+	-- do not wait on us. All that is left is keeping an idle row tidy, which is worth a few times
+	-- a second rather than a hundred, and the difference is the whole of what this was costing.
+	if ns.sawSecretBar and not (p and p.test) then rate = 5 end
 	if acc < (1 / rate) then return end
 	acc = 0
 	local now = GetTime()

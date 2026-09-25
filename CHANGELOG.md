@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.17.0
+
+- **Fixed the memory climbing and falling back, and most of the processor time with it.**
+
+  It was not a leak. Memory that climbs to a figure and starts again from the bottom is the collector doing its job; what was wrong was how much it was being given to do. Six rows were being redressed from scratch as often as the tick ran, which at your setting was a hundred and twenty times a second: a freshly formatted countdown string for each row whether or not it read any differently, a new table for every value written to every bar, and the colours and alphas set again on rows that had not changed what they were showing.
+
+  None of that was visible on screen. It is only done now when it would come out differently: the countdown when it would read differently, the dressing when a row changes between idle and previewing, the spark's anchor when it would land more than a quarter of a pixel from where it already is, and the watcher fills the same table in rather than making a new one.
+
+  Two things stayed unconditional on purpose, because they are correctness rather than dressing: an idle row is put back to empty, and its spark put away, whatever else wrote to it. A row left with a fill on it would keep it for good.
+
+- **The tick no longer runs at full speed to do nothing.** It exists for the preview and the smoothing. Where the countdown is secret there is nothing to smooth, and with the preview off there is nothing of this addon's moving at all, so it drops to five times a second. The heal bars are unaffected: they are drawn by the game and never waited on this.
+
+- **`/tapline debug` now counts rebuilds.** A rebuild throws away every frame in the display and makes new ones, and this client never gives a frame back, so a rebuild that fires on a timer rather than on an actual change is a leak nothing can clean up. If that number climbs while you stand still, that is a real one and worth reporting.
+
 ## 1.16.0
 
 - **Fixed a crash at login, and with it the reason the smoothing had nothing to work on.**
