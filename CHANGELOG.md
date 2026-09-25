@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.16.0
+
+- **Fixed a crash at login, and with it the reason the smoothing had nothing to work on.**
+
+  1.15.0 asked the spark whether it was shown before placing it. On this client that answer comes back as a *secret value*: the game works out whether the row is running from its own countdown, which is aura data, and aura data is handed to an addon sealed. A secret may be held and passed along but never looked inside, and testing one taints the addon — after which the client refuses every boolean test it reaches, anywhere. That is the `attempt to perform boolean test on a secret boolean value` in the error, and it fired on the first draw after login.
+
+  The question is no longer asked in a way that needs an answer. A secret reply is read as yes, because placing a spark that is hidden puts nothing on the screen. The bar's range is treated the same way, since it belongs to the game too.
+
+- **The honest consequence: on a bar whose countdown is secret, neither the smoothing nor the glide can do anything, and they no longer pretend to.**
+
+  This is the part worth being straight about. 1.14.0 and 1.15.0 both work by reading the number the game wrote and carrying it forward, and that number cannot be read here. What those two releases actually improved was the preview. On the real heal bars they were doing nothing, and the way they went about it is what caused the crash.
+
+  `/tapline debug` now reports **the game's countdown** as readable or secret, so it says plainly which you have rather than leaving it to be guessed at. The bars themselves are unaffected either way: they are drawn by the game and always were.
+
+- The version this addon reports had been stuck at 1.14.0 while the file said otherwise, so the automatic report was labelling itself wrong.
+
 ## 1.15.0
 
 - **The spark glides now, instead of stepping with the fill it sits on.**

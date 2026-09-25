@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.14.0"
+ns.VERSION = "1.16.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -92,6 +92,15 @@ function ns.Clean(v)
 	return v
 end
 local Clean = ns.Clean
+
+-- Whether a value is one of this client's secrets. Asking is a question ABOUT a value rather
+-- than a look inside it, so it is the one thing that may be done before anything else, and it
+-- is how a secret is kept away from the arithmetic and the boolean tests it taints.
+function ns.Secret(v)
+	if not issecretvalue then return false end
+	return issecretvalue(v) and true or false
+end
+local Secret = ns.Secret
 
 -- The reason a read did not produce a number. The three walls want three different answers: a
 -- function this client does not have, a call it refuses, and a number handed over as a secret.

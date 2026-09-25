@@ -16,6 +16,7 @@ local ADDON, ns = ...
 local Panel = {}
 ns.Panel = Panel
 
+local Clean, Secret = ns.Clean, ns.Secret
 local floor, max, min = math.floor, math.max, math.min
 local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
 local BACKDROP = {
@@ -503,12 +504,19 @@ function Panel:Glide(now)
 			bar.tlSparkGliding, bar.tlSparkPos = nil, nil
 			spark:ClearAllPoints()
 			spark:SetPoint("CENTER", bar:GetStatusBarTexture() or bar, "RIGHT", 0, 0)
-		elseif spark and want and spark:IsShown() then
+		elseif spark and want then
+			-- Whether the spark is shown was worked out by the game from its own countdown, so the
+			-- answer comes back secret, and a secret answer must not be tested. It is taken as yes
+			-- when it cannot be read: placing a spark that is hidden puts nothing on the screen.
+			local okS, shown = pcall(spark.IsShown, spark)
+			local visible = true
+			if okS and not Secret(shown) then visible = shown and true or false end
 			local seen = bar.tlSeen
-			local width = bar:GetWidth() or 0
+			local width = tonumber(Clean(bar:GetWidth())) or 0
+			if not visible then seen = nil end
 			if seen and seen.value and width > 1 then
 				local okM, lo, hi = pcall(bar.GetMinMaxValues, bar)
-				lo, hi = tonumber(okM and lo) or 0, tonumber(okM and hi) or 0
+				lo, hi = tonumber(Clean(okM and lo)) or 0, tonumber(Clean(okM and hi)) or 0
 				if hi > lo then
 					-- The same guess the fill is drawn from, so the two cannot drift apart.
 					local value = seen.value

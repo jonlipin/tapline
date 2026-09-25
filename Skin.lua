@@ -14,7 +14,7 @@ local ADDON, ns = ...
 local Skin = { ready = false }
 ns.Skin = Skin
 
-local Clean = ns.Clean
+local Clean, Secret = ns.Clean, ns.Secret
 local floor, max, min, abs = math.floor, math.max, math.min, math.abs
 
 local FONT = STANDARD_TEXT_FONT or "Fonts\\FRIZQT__.TTF"
@@ -556,12 +556,34 @@ function Skin:Apply(bar, height, icon, name, time, iconSize, already)
 		-- the end of the fill, so on a row with no heal on it the spark sat against the left edge
 		-- looking like a mark on the plate. It belongs to a bar that is actually running.
 		local function follow(value)
+			-- Handed straight on. The figure the game writes here is usually a secret value, and a
+			-- secret may be held and passed along, just never looked inside, so the game works out
+			-- for itself whether this row is running and the spark is hidden correctly on one that
+			-- is not. What comes back from IsShown afterwards is secret in its turn, which is why
+			-- nothing anywhere may test that.
 			if bar.tlSpark then bar.tlSpark:SetShown((tonumber(value) or 0) > 0.001) end
 			-- The same watch says how fast the game is draining this bar, which is what lets it be
 			-- carried on smoothly between those updates. Our own writes are skipped: timing them
 			-- would be timing ourselves.
 			if bar.tlOurs then return end
+			-- From here it is arithmetic, and arithmetic wants a number this addon may read. A bar
+			-- whose countdown is secret is left exactly as the game draws it: there is no smoothing
+			-- a number that cannot be read, and pretending otherwise is what tainted the addon.
+			if Secret(value) then
+				bar.tlSeen, ns.sawSecretBar = nil, true
+				ns.report["the game's countdown"] = "secret, so the fill is left exactly as the game draws it"
+				return
+			end
 			local v, now = tonumber(value), GetTime()
+			-- Converting one does not open it, so the answer wants asking about too.
+			if Secret(v) then
+				bar.tlSeen, ns.sawSecretBar = nil, true
+				ns.report["the game's countdown"] = "secret, so the fill is left exactly as the game draws it"
+				return
+			end
+			if not ns.sawSecretBar then
+				ns.report["the game's countdown"] = "readable, so it can be carried on between updates"
+			end
 			if not v then bar.tlSeen = nil return end
 			local seen = bar.tlSeen
 			local rate
