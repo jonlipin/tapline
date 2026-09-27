@@ -273,6 +273,11 @@ local function InitSlot(row)
 		ns.slotCalls["build the row"] = ok and "ok" or tostring(parts):gsub("^.-%.lua:%d+:%s*", "")
 		if not ok or type(parts) ~= "table" then return end
 		button.tlParts = parts
+		-- Marked while it is still ours to write on. Once the game has it the bar is a forbidden
+		-- object, and a tainted addon calling any method on it is an error, every frame, for as
+		-- long as it runs. Its countdown is secret besides, so there is nothing the smoothing or
+		-- the glide could ever do with it: they leave it alone entirely.
+		if parts.bar then parts.bar.tlGameOwned = true end
 		Hand(button, "SetIcon", parts.icon)
 		Hand(button, "SetDurationBar", parts.bar)
 		Hand(button, "SetDurationText", parts.time)
@@ -483,11 +488,22 @@ end
 -- The game's next write corrects whatever this guessed, so a wrong guess lasts a fraction of a
 -- second and is never carried forward. Our own writes are marked, so they are not mistaken for
 -- the game's and used to work out the rate.
+-- Whether a bar is one this addon may still touch. The game's own bars are marked when they are
+-- handed over; anything else that has become forbidden is caught by asking, which is the one
+-- question a forbidden object will answer, and remembered so it is asked only once.
+local function Ours(bar)
+	if bar.tlGameOwned or bar.tlForbidden then return false end
+	local ok, no = pcall(bar.IsForbidden, bar)
+	if ok and not Secret(no) and not no then return true end
+	bar.tlForbidden = true
+	return false
+end
+
 function Panel:Smooth(now)
 	local p = ns.Profile()
 	if not p or p.smooth == false then return end
 	for _, bar in ipairs(self.liveBars or {}) do
-		local seen = bar.tlSeen
+		local seen = Ours(bar) and bar.tlSeen
 		if seen and seen.rate and seen.rate > 0 then
 			local gone = now - seen.at
 			-- Only ever between two updates. Carrying on for longer than that means the bar has
@@ -524,7 +540,7 @@ function Panel:Glide(now)
 	if not p then return end
 	local want = p.spark ~= false and p.sparkGlide ~= false
 	for _, bar in ipairs(self.liveBars or {}) do
-		local spark = bar.tlSpark
+		local spark = Ours(bar) and bar.tlSpark
 		if spark and not want and bar.tlSparkGliding then
 			-- Put it back on the end of the fill and leave it there.
 			bar.tlSparkGliding, bar.tlSparkPos, bar.tlSparkPx = nil, nil, nil
