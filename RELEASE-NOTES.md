@@ -1,7 +1,5 @@
-## 1.17.1
+## 1.17.2
 
-### Changed
-- British spellings and idioms taken out of everything you read: colour, grey, recognise, labelled, travelling, and "round" used as a preposition, which appeared 30 times in "a frame round the bar" and the like. "Make a noise when a heal lands" is now "Play a sound when a heal lands".
-- Three functions renamed off dialect: Reckon is Measure, ReckonCost is TapCost, ReckonIncoming is IncomingHeal.
-
-Nothing about how the addon behaves changed.
+### Fixed
+- Error on every tick: `calling 'GetWidth' on bad self (Attempt to access forbidden object)`. The bars handed to the game become forbidden objects, and the spark glide was calling methods on them. They are now marked as the game's when handed over, and neither the glide nor the smoothing touches them. Their countdown is secret anyway, so there was never anything to do with them.
+- Any other bar the client has since made forbidden is detected by asking `IsForbidden`, and skipped from then on.
