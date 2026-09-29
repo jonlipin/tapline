@@ -6,6 +6,7 @@
 ## LoadSavedVariablesFirst: 1
 ## SavedVariables: TaplineDB
 ## IconTexture: Interface\Icons\Spell_Shadow_BurningSpirit
+## X-License: MIT
 
 Data.lua
 Core.lua
