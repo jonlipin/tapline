@@ -82,7 +82,7 @@ The sound names are half guesswork against file ids, so press a number to hear i
 | `/tapline rate <10-120>` | how often the bars are brought up to date |
 | `/tapline smooth` \| `glide` | carry the fill on between the game's writes, and the spark with it |
 | `/tapline minimap` | show or hide the minimap button |
-| `/tapline style auto` | `blizzard` | `dark` | the window style; with no word it steps to the next one |
+| `/tapline style auto` \| `blizzard` \| `dark` | the window style; with no word it steps to the next one |
 | `/tapline sound` | list the sounds and set them |
 | `/tapline debug` | what this client actually let the addon read |
 | `/tapline reset` | put the bars back in the middle |
