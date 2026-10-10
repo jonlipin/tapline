@@ -33,7 +33,7 @@
 
 local ADDON, ns = ...
 
-ns.VERSION = "1.17.2"
+ns.VERSION = "1.18.0"
 ns.report = {}
 
 local floor, max, min = math.floor, math.max, math.min
@@ -346,6 +346,8 @@ local DEFAULTS = {
 	minimap = true,
 	minimapAngle = 200, -- where around the map it sits, in degrees
 	barX = nil, barY = nil,
+	style = "auto",  -- the options window's look: "auto" (EllesmereUI when it runs), "blizzard" or "dark"
+	darkAlpha = 0.92, -- how solid the Dark style's window background is
 }
 ns.DEFAULTS = DEFAULTS
 

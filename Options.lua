@@ -40,6 +40,13 @@ end
 
 local function P() return ns.Profile() or {} end
 
+-- Each copy of the page lists its pieces, so the window styles (Tapline_Skins.lua) can find them.
+local function Keep(parent, kind, part)
+	local parts = parent.tlParts
+	if not parts then return end
+	parts[kind][#parts[kind] + 1] = part
+end
+
 -- Every control registers itself here so the whole page can be brought back into line whenever a
 -- value changes behind it, from a slash command or from the other host.
 function Options:Track(widget)
@@ -51,6 +58,7 @@ end
 function Options:Heading(parent, x, y, text)
 	local fs = Label(parent, text, 13, 1, 0.82, 0)
 	fs:SetPoint("TOPLEFT", x, y)
+	Keep(parent, "texts", fs)
 	return y - 22
 end
 
@@ -59,6 +67,7 @@ function Options:Note(parent, x, y, text)
 	fs:SetPoint("TOPLEFT", x, y)
 	fs:SetWidth(COL)
 	fs:SetJustifyH("LEFT")
+	Keep(parent, "texts", fs)
 	local lines = max(1, floor(#text / 46) + 1)
 	return y - (12 * lines) - 6
 end
@@ -111,7 +120,8 @@ function Options:Slider(parent, x, y, label, lo, hi, step, get, set, suffix)
 	end
 	holder.Refresh()
 	self:Track(holder)
-	return y - 44
+	Keep(parent, "sliders", { slider = slider, caption = text, value = value })
+	return y - 44, holder, slider, text, value
 end
 
 function Options:Check(parent, x, y, label, get, set)
@@ -120,6 +130,7 @@ function Options:Check(parent, x, y, label, get, set)
 	box:SetSize(24, 24)
 	local text = Label(parent, label, 11)
 	text:SetPoint("LEFT", box, "RIGHT", 4, 0)
+	Keep(parent, "checks", { button = box, label = text })
 	if box.SetChecked then
 		box:SetScript("OnClick", function(self2) set(self2:GetChecked() and true or false) Options:Refresh() end)
 		box.Refresh = function() box:SetChecked(get() and true or false) end
@@ -135,6 +146,7 @@ function Options:Button(parent, x, y, width, label, onClick)
 	b:SetSize(width, 22)
 	if b.SetText then b:SetText(label) else Label(b, label, 11):SetPoint("CENTER") end
 	b:SetScript("OnClick", onClick)
+	Keep(parent, "buttons", b)
 	return b
 end
 
@@ -144,6 +156,7 @@ end
 function Options:Sounds(parent, x, y, label, key)
 	local text = Label(parent, label, 11)
 	text:SetPoint("TOPLEFT", x, y)
+	Keep(parent, "texts", text)
 	local holder = CreateFrame("Frame", nil, parent)
 	holder:SetPoint("TOPLEFT", x, y - 16)
 	holder:SetSize(COL, 22)
@@ -169,6 +182,7 @@ function Options:Sounds(parent, x, y, label, key)
 			GameTooltip:Show()
 		end)
 		b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+		Keep(parent, "buttons", b)
 		buttons[index] = b
 		at = at + width + 2
 	end
@@ -197,16 +211,25 @@ end
 -- ------------------------------------------------------------------
 function Options:Content()
 	if self.content then return self.content end
-	local c = CreateFrame("Frame", "TaplineOptionsContent", UIParent)
+	self.rows = self.rows or {}
+	self.content = self:Build("TaplineOptionsContent")
+	return self.content
+end
+
+-- Makes one copy of the page. There is one, moved between hosts, and a second only for our own
+-- window while a window style is drawn (see Options:WindowContent). Both copies' controls are
+-- tracked, so a change made in either shows in the other.
+function Options:Build(name)
+	local c = CreateFrame("Frame", name, UIParent)
 	c:SetSize(W, H)
-	self.content = c
-	self.rows = {}
+	c.tlParts = { texts = {}, checks = {}, sliders = {}, buttons = {} }
 
 	local y = -14
 	local intro = Label(c, "Whether a heal is on you is secret to addons on this client, so the game draws these bars rather than Tapline, and keeps them right in a fight. The alert below is played by the game too.", 11, 0.7, 0.68, 0.6)
 	intro:SetPoint("TOPLEFT", 16, y)
 	intro:SetWidth(W - 32)
 	intro:SetJustifyH("LEFT")
+	Keep(c, "texts", intro)
 	y = y - 40
 
 	local left, right = 16, 16 + COL + 24
@@ -288,6 +311,9 @@ function Options:Content()
 	ry = self:Sounds(c, right, ry, "When one runs out", "sndLapsed")
 	ry = self:Note(c, right, ry, "Press a number to hear it. Grayed out means this client refuses that file.")
 
+	ry = self:Heading(c, right, ry - 8, "Look")
+	ry = self:Look(c, right, ry)
+
 	local bottom = min(ly, ry) - 8
 	self:Button(c, left, bottom, 120, "Reset layout", function()
 		local p = P()
@@ -307,6 +333,71 @@ function Options:Content()
 	return c
 end
 
+-- The window style (Styles.lua): a button that steps through the styles, a line saying which is in
+-- use and what a reload would change, and how solid the Dark style's background is, grayed out
+-- while another style is chosen.
+function Options:Look(parent, x, y)
+	local b = self:Button(parent, x, y, 200, "Window style", function(_, which)
+		if ns.Styles then ns.Styles.Cycle(which == "RightButton" and -1 or 1) end
+		Options:Refresh()
+	end)
+	if b.RegisterForClicks then b:RegisterForClicks("LeftButtonUp", "RightButtonUp") end
+	b:SetScript("OnEnter", function(self2)
+		if not GameTooltip then return end
+		GameTooltip:SetOwner(self2, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Window style")
+		for _, line in ipairs(ns.Styles and ns.Styles.HELP or {}) do GameTooltip:AddLine(line, 1, 1, 1, true) end
+		GameTooltip:AddLine("Left-click for the next style, right-click for the previous one.", 0.6, 0.6, 0.6, true)
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", function() if GameTooltip then GameTooltip:Hide() end end)
+	local note = Label(parent, "", 10, 0.62, 0.60, 0.53)
+	note:SetPoint("TOPLEFT", x, y - 28)
+	note:SetWidth(COL)
+	Keep(parent, "texts", note)
+	b.Refresh = function()
+		local Styles = ns.Styles
+		if b.SetText then b:SetText("Window style: " .. (Styles and Styles.Name(P().style) or "Blizzard")) end
+		note:SetText(Styles and Styles.Note() or "")
+	end
+	b.Refresh()
+	self:Track(b)
+
+	local after, holder, slider, caption, value = self:Slider(parent, x, y - 60, "Dark background opacity", 0, 100, 5,
+		function() return floor((P().darkAlpha or 0.92) * 100 + 0.5) end,
+		function(v)
+			P().darkAlpha = v / 100
+			if ns.Styles then ns.Styles.SetDarkAlpha(P().darkAlpha) end
+		end, "%")
+	local base = holder.Refresh
+	holder.Refresh = function()
+		base()
+		local dark = P().style == "dark"
+		holder:SetAlpha(dark and 1 or 0.5)
+		if slider.SetEnabled then pcall(slider.SetEnabled, slider, dark) end
+		slider:EnableMouse(dark)
+		caption:SetTextColor(dark and 0.85 or 0.5, dark and 0.82 or 0.5, dark and 0.72 or 0.5)
+		value:SetTextColor(dark and 1 or 0.5, dark and 0.82 or 0.5, dark and 0 or 0.5)
+	end
+	holder.Refresh()
+	-- The holder answers the mouse so the tooltip still shows while the slider is grayed out.
+	holder:EnableMouse(true)
+	local function Tip(self2)
+		if not GameTooltip then return end
+		GameTooltip:SetOwner(self2, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Dark background opacity")
+		GameTooltip:AddLine("How much of the world shows through the Dark style's windows.", 1, 1, 1, true)
+		if P().style ~= "dark" then GameTooltip:AddLine("Applies to the Dark style only.", 1, 0.82, 0, true) end
+		GameTooltip:Show()
+	end
+	local function Untip() if GameTooltip then GameTooltip:Hide() end end
+	holder:SetScript("OnEnter", Tip)
+	holder:SetScript("OnLeave", Untip)
+	slider:HookScript("OnEnter", function() Tip(holder) end)
+	slider:HookScript("OnLeave", Untip)
+	return after
+end
+
 -- A window onto the page, since the page is taller than anything that hosts it.
 --
 -- Worked by the wheel and nothing else: a scrollbar wants a template, templates are not on disk
@@ -318,7 +409,7 @@ function Options:Scroller(host)
 	scroll:SetPoint("BOTTOMRIGHT", -4, 0)
 	scroll:EnableMouseWheel(true)
 	scroll:SetScript("OnMouseWheel", function(self2, delta)
-		local page = Options.content
+		local page = self2.tlPage or Options.content
 		if not page then return end
 		local room = max(0, (page:GetHeight() or 0) - (self2:GetHeight() or 0))
 		local at = (self2:GetVerticalScroll() or 0) - (delta or 0) * 40
@@ -330,10 +421,11 @@ function Options:Scroller(host)
 end
 
 -- Puts the page inside a host, scrolling. The page can only be in one place at a time, so it is
--- moved rather than built twice.
-function Options:PlaceIn(host)
-	local content = self:Content()
+-- moved rather than built twice. content is the window's own copy when one is wanted.
+function Options:PlaceIn(host, content)
+	content = content or self:Content()
 	local scroll = self:Scroller(host)
+	scroll.tlPage = content
 	content:SetParent(scroll)
 	content:ClearAllPoints()
 	content:SetPoint("TOPLEFT", 0, 0)
@@ -360,8 +452,25 @@ function Options:RegisterBlizzard()
 	self.category = false
 	local canvas = CreateFrame("Frame", "TaplineOptionsCanvas", UIParent)
 	canvas.name = "Tapline"
+	-- Hidden until the game shows it. A shown frame moved into the already open options window
+	-- does not get OnShow, so a page our window had borrowed stayed empty on the first visit.
+	canvas:Hide()
 	self.canvas = canvas
 	self:PlaceIn(canvas)
+	-- Our window borrows the page when the game's will not open, and nothing gave it back, so the
+	-- game's page could open empty. Whenever it shows, the page comes home; a window that was left
+	-- holding nothing is closed. A window showing its own restyled copy is left as it is.
+	canvas:SetScript("OnShow", function()
+		local content = self.content
+		if not content or content:GetParent() == canvas.tlScroll then return end
+		local f = self.frame
+		-- Showing it, not merely holding it: a window with its own copy keeps the old one hidden.
+		local scroll = f and (f.Inset or f).tlScroll
+		local borrowed = scroll and scroll.tlPage == content
+		self:PlaceIn(canvas)
+		self:Refresh()
+		if borrowed and f:IsShown() then f:Hide() end
+	end)
 
 	if Settings and Settings.RegisterCanvasLayoutCategory and Settings.RegisterAddOnCategory then
 		local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, canvas, "Tapline")
@@ -422,19 +531,51 @@ function Options:Window()
 		f:SetClampedToScreen(true)
 		if f.TitleText then f.TitleText:SetText("Tapline") end
 		if f.SetTitle then pcall(f.SetTitle, f, "Tapline") end
-		if not f.CloseButton then
-			local close = select(1, Try("Button", nil, f, "UIPanelCloseButton"))
+		local close = f.CloseButton
+		if not close then
+			close = select(1, Try("Button", nil, f, "UIPanelCloseButton"))
 			close:SetPoint("TOPRIGHT", -4, -4)
 			close:SetSize(24, 24)
-			close:SetScript("OnClick", function() f:Hide() end)
+			f.tlClose = close
 		end
+		-- The template's X closes through HideUIPanel, which the game refuses to addon code in
+		-- combat; hiding the window directly always works.
+		if close and close.SetScript then close:SetScript("OnClick", function() f:Hide() end) end
 		tinsert(UISpecialFrames, "TaplineOptions")
 		f:Hide()
 		self.frame = f
+		if ns.SkinWindow then ns.SkinWindow(f) end
 	end
 	if f:IsShown() then f:Hide() return false end
-	self:PlaceIn(f.Inset or f)
+	self:FillWindow()
 	self:Refresh()
 	f:Show()
 	return true
+end
+
+-- While a window style is drawn, our window shows a copy of the page of its own for the style to
+-- restyle, so the page in the game's options window keeps the game's look. nil otherwise.
+function Options:WindowContent()
+	if not (ns.Styles and ns.Styles.S) then return nil end
+	if not self.windowContent then
+		self:Content()
+		local ok, made = pcall(self.Build, self, "TaplineOptionsWindowContent")
+		if not ok then
+			ns.report["options window copy"] = "refused: " .. tostring(made)
+			return nil
+		end
+		self.windowContent = made
+		if ns.SkinContent then ns.SkinContent(made) end
+	end
+	return self.windowContent
+end
+
+function Options:FillWindow()
+	local f = self.frame
+	if not f then return end
+	local host = f.Inset or f
+	local own = self:WindowContent()
+	-- The shared page may still be sitting in this window from before the style was drawn.
+	if own and self.content and self.content:GetParent() == self:Scroller(host) then self.content:Hide() end
+	self:PlaceIn(host, own)
 end

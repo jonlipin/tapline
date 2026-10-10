@@ -212,6 +212,7 @@ function ns.Usage()
 	Print("  /tapline sound - list the sounds; applied | lapsed | estimate <n> to set one")
 	Print("  /tapline scale <0.5-2> - size of both displays")
 	Print("  /tapline reset - put both back in the middle")
+	Print("  /tapline style auto | blizzard | dark - the look of the options window")
 	Print("  /tapline debug - what this client actually let the addon read (send this with a report)")
 end
 
@@ -381,6 +382,17 @@ local function Command(msg)
 		Print(("%d lines kept. Type /reload, then the report is in TaplineDB.log in this character's SavedVariables."):format(n))
 	elseif sub == "probe" then
 		ns.Probe()
+	elseif sub == "style" then
+		local Styles, style = ns.Styles, string.lower(tail or "")
+		if style == "auto" or style == "automatic" then Styles.Set("auto")
+		elseif style == "blizzard" or style == "dark" then Styles.Set(style)
+		elseif style == "" then Styles.Cycle(1)
+		else
+			Print("Window styles: auto, blizzard, dark.")
+			return
+		end
+		if ns.Options then ns.Options:Refresh() end
+		Print("Window style " .. Styles.Name(p.style) .. ". " .. Styles.Note())
 	else
 		ns.Usage()
 	end

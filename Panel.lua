@@ -68,6 +68,8 @@ function Panel:Restyle()
 		pcall(holder.SetBackdropColor, holder, 0.05, 0.03, 0.02, tonumber(p.bgAlpha) or 0.9)
 		pcall(holder.SetBackdropBorderColor, holder, 0.6, 0.5, 0.35, tonumber(p.borderAlpha) or 1)
 	end
+	-- The box in a drawn window style: flat, with the same two opacity settings (Tapline_Skins.lua).
+	if ns.SkinBox then pcall(ns.SkinBox, holder, p) end
 end
 
 -- A size or an icon changed, so the rows have to be made again: a slot the game has placed
@@ -250,6 +252,15 @@ local function Adorn(frame, m, already)
 	-- Now the client's own art, if it will part with it, and never at the cost of the row.
 	local p = ns.Profile()
 	if p and p.plain then ns.report["bar art"] = "off, by /tapline plain" return parts end
+	-- A drawn window style (Dark, or EllesmereUI's look) gives the row its flat look instead of the
+	-- copied art. Guarded on its own like the art, so the worst it can do is leave a plain bar; and
+	-- done here, before the game is handed anything, because a bar the game holds cannot be touched.
+	if ns.SkinRow and ns.Styles and ns.Styles.S then
+		local okStyle, why = pcall(ns.SkinRow, frame, parts, m)
+		ns.report["bar art"] = okStyle and ("flat, in the " .. tostring(ns.Styles.Applied()) .. " style")
+			or ("the style was refused: " .. tostring(why):gsub("^.-%.lua:%d+:%s*", ""))
+		return parts
+	end
 	local ok, applied = pcall(function() return ns.Skin:Dress(bar, h, icon, name, time, m.iconSize, already) end)
 	if not ok then
 		ns.report["bar art"] = "refused: " .. tostring(applied):gsub("^.-%.lua:%d+:%s*", "")

@@ -37,6 +37,9 @@ function Button:Place()
 	local angle = rad(tonumber(p.minimapAngle) or 200)
 	local okW, width = pcall(Minimap.GetWidth, Minimap)
 	local radius = (okW and ns.Clean(width) or 140) / 2 + 5
+	-- Only while it sits on the minimap. A button collector (EllesmereUI's, for one) that
+	-- has taken the button keeps it where it put it.
+	if b:GetParent() ~= Minimap then return end
 	b:ClearAllPoints()
 	b:SetPoint("CENTER", Minimap, "CENTER", cos(angle) * radius, sin(angle) * radius)
 end

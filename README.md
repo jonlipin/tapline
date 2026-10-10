@@ -59,6 +59,7 @@ The bars wear the Cooldown Manager's own art, copied at runtime and **measured**
 | Always draw a frame around the bar | when the copied art is not what you want |
 | Plain bars | skip the copied art entirely |
 | Play a sound when a heal lands | and which sound, for landing and for running out |
+| Window style, Dark background opacity | the look: Automatic (EllesmereUI's when it is running), Blizzard or Dark; under Dark or EllesmereUI the bars, the box and the options window go flat |
 
 The sound names are half guesswork against file ids, so press a number to hear it. Grayed out means this client refuses that file. `/tapline sound try` plays every one in turn.
 
@@ -81,6 +82,7 @@ The sound names are half guesswork against file ids, so press a number to hear i
 | `/tapline rate <10-120>` | how often the bars are brought up to date |
 | `/tapline smooth` \| `glide` | carry the fill on between the game's writes, and the spark with it |
 | `/tapline minimap` | show or hide the minimap button |
+| `/tapline style auto` | `blizzard` | `dark` | the window style; with no word it steps to the next one |
 | `/tapline sound` | list the sounds and set them |
 | `/tapline debug` | what this client actually let the addon read |
 | `/tapline reset` | put the bars back in the middle |
